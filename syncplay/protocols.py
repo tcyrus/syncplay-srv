@@ -137,7 +137,7 @@ class SyncServerProtocol(JSONCommandProtocol):
         features = hello.get("features")
         return username, serverPassword, roomName, version, features
 
-    def _checkPassword(self, serverPassword):
+    def _checkPassword(self, serverPassword) -> bool:
         if self._factory.password:
             if not serverPassword:
                 self.dropWithError(getMessage("password-required-server-error"))
@@ -381,17 +381,19 @@ class SyncServerProtocol(JSONCommandProtocol):
 
 
 class PingService:
-    def __init__(self):
-        self._rtt = 0
-        self._fd = 0
-        self._avrRtt = 0
+    _rtt: float
+    _fd: float
+    _avrRtt: float
 
-    def newTimestamp(self):
+    def __init__(self):
+        self._rtt = 0.0
+        self._fd = 0.0
+        self._avrRtt = 0.0
+
+    def newTimestamp(self) -> float:
         return time.time()
 
-    def receiveMessage(self, timestamp, senderRtt) -> None:
-        if not timestamp:
-            return
+    def receiveMessage(self, timestamp: float, senderRtt: float) -> None:
         self._rtt = time.time() - timestamp
         if self._rtt < 0 or senderRtt < 0:
             return
@@ -403,9 +405,9 @@ class PingService:
         else:
             self._fd = self._avrRtt / 2
 
-    def getLastForwardDelay(self):
+    def getLastForwardDelay(self) -> float:
         return self._fd
 
     @property
-    def rtt(self):
+    def rtt(self) -> float:
         return self._rtt
