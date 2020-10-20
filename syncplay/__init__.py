@@ -1,5 +1,4 @@
 version = '1.6.6'
-revision = ' development'
-milestone = 'Yoitsu'
-release_number = '87'
-projectURL = 'https://syncplay.pl/'
+milestone = 'Roon'
+release_number = '90'
+projectURL = 'https://github.com/weeb-poly/syncplay-srv'
