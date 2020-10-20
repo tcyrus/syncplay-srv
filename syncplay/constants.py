@@ -2,7 +2,7 @@
 
 # You might want to change these
 DEFAULT_PORT = 8999
-RECENT_CLIENT_THRESHOLD = "1.6.5"  # This and higher considered 'recent' clients (no warnings)
+RECENT_CLIENT_THRESHOLD = "1.6.6"  # This and higher considered 'recent' clients (no warnings)
 WARN_OLD_CLIENTS = True  # Use MOTD to inform old clients to upgrade
 FALLBACK_INITIAL_LANGUAGE = "en"
 
