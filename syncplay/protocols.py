@@ -4,7 +4,7 @@ import time
 from functools import wraps
 import logging
 
-from twisted.protocols.basic import LineReceiver
+from autobahn.twisted.websocket import WebSocketServerProtocol
 
 import syncplay
 from syncplay.constants import PING_MOVING_AVERAGE_WEIGHT, CONTROLLED_ROOMS_MIN_VERSION, USER_READY_MIN_VERSION, SHARED_PLAYLIST_MIN_VERSION, CHAT_MIN_VERSION
@@ -12,7 +12,7 @@ from syncplay.messages import getMessage
 from syncplay.utils import meetsMinVersion
 
 
-class JSONCommandProtocol(LineReceiver):
+class JSONCommandProtocol(WebSocketServerProtocol):
     def handleMessages(self, messages: dict) -> None:
         for command, message in messages.items():
             if command == "Hello":
@@ -27,13 +27,11 @@ class JSONCommandProtocol(LineReceiver):
                 self.handleError(message)
             elif command == "Chat":
                 self.handleChat(message)
-            elif command == "TLS":
-                self.handleTLS(message)
             else:
                 # TODO: log, not drop
                 self.dropWithError(getMessage("unknown-command-server-error").format(message))
 
-    def lineReceived(self, line: bytes) -> None:
+    def onMessage(self, line: bytes, _isBinary: bool) -> None:
         try:
             line = line.decode('utf-8').strip()
         except UnicodeDecodeError:
@@ -50,13 +48,13 @@ class JSONCommandProtocol(LineReceiver):
         else:
             self.handleMessages(messages)
 
-    def sendMessage(self, dict_: dict) -> None:
+    def sendMsg(self, dict_: dict) -> None:
         line = json.dumps(dict_)
-        self.sendLine(line.encode('utf-8'))
+        self.sendMessage(line.encode('utf-8'), False)
         self.showDebugMessage(f"client/server >> {line}")
 
     def drop(self):
-        self.transport.loseConnection()
+        self.sendClose()
 
     def dropWithError(self, error):
         raise NotImplementedError()
@@ -95,10 +93,9 @@ class SyncServerProtocol(JSONCommandProtocol):
 
     def dropWithError(self, error) -> None:
         logging.error(getMessage("client-drop-server-error").format(self.transport.getPeer().host, error))
-        self.sendError(error)
-        self.drop()
+        self.sendClose(3000, error)
 
-    def connectionLost(self, reason) -> None:
+    def onClose(self, _wasClean: bool, _code: int, _reason: str) -> None:
         self._factory.removeWatcher(self._watcher)
 
     def getFeatures(self) -> dict:
@@ -187,7 +184,7 @@ class SyncServerProtocol(JSONCommandProtocol):
         hello["realversion"] = syncplay.version
         hello["motd"] = self._factory.getMotd(userIp, username, room, clientVersion)
         hello["features"] = self._factory.getFeatures()
-        self.sendMessage({"Hello": hello})
+        self.sendMsg({"Hello": hello})
 
     @requireLogged
     def handleSet(self, settings) -> None:
@@ -213,7 +210,7 @@ class SyncServerProtocol(JSONCommandProtocol):
                 self._watcher.setFeatures(setting)
 
     def sendSet(self, setting) -> None:
-        self.sendMessage({"Set": setting})
+        self.sendMsg({"Set": setting})
 
     def sendNewControlledRoom(self, roomName: str, password) -> None:
         self.sendSet({
@@ -287,7 +284,7 @@ class SyncServerProtocol(JSONCommandProtocol):
         watchers = self._factory.getAllWatchersForUser(self._watcher)
         for watcher in watchers:
             self._addUserOnList(userlist, watcher)
-        self.sendMessage({"List": userlist})
+        self.sendMsg({"List": userlist})
 
     @requireLogged
     def handleList(self, _) -> None:
@@ -325,7 +322,7 @@ class SyncServerProtocol(JSONCommandProtocol):
                 state["ignoringOnTheFly"]["client"] = self.clientIgnoringOnTheFly
                 self.clientIgnoringOnTheFly = 0
         if self.serverIgnoringOnTheFly == 0 or forced:
-            self.sendMessage({"State": state})
+            self.sendMsg({"State": state})
 
     def _extractStatePlaystateArguments(self, state):
         position = state["playstate"].get("position", 0)
@@ -359,25 +356,7 @@ class SyncServerProtocol(JSONCommandProtocol):
         self.dropWithError(error["message"])
 
     def sendError(self, message) -> None:
-        self.sendMessage({"Error": {"message": message}})
-
-    def sendTLS(self, message) -> None:
-        self.sendMessage({"TLS": message})
-
-    def handleTLS(self, message) -> None:
-        inquiry = message.get("startTLS")
-        if "send" in inquiry:
-            if not self.isLogged() and self._factory.serverAcceptsTLS:
-                lastEditCertTime = self._factory.checkLastEditCertTime()
-                if lastEditCertTime is not None and lastEditCertTime != self._factory.lastEditCertTime:
-                    self._factory.updateTLSContextFactory()
-                if self._factory.options is not None:
-                    self.sendTLS({"startTLS": "true"})
-                    self.transport.startTLS(self._factory.options)
-                else:
-                    self.sendTLS({"startTLS": "false"})
-            else:
-                self.sendTLS({"startTLS": "false"})
+        self.sendMsg({"Error": {"message": message}})
 
 
 class PingService:

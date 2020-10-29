@@ -37,10 +37,6 @@ class ConfigurationGetter:
             args.salt = os.environ.get('SYNCPLAY_SALT')
         if args.motd_file is None:
             args.motd_file = os.environ.get('SYNCPLAY_MOTD_FILE')
-        if args.stats_db_file is None:
-            args.stats_db_file = os.environ.get('SYNCPLAY_STATS_DB_FILE')
-        if args.tls is None:
-            args.tls = os.environ.get('SYNCPLAY_TLS_PATH')
 
         if args.max_chat_message_length is None:
             tmp = os.environ.get('SYNCPLAY_MAX_CHAT_MSG_LEN')
@@ -71,8 +67,6 @@ class ConfigurationGetter:
         self._argparser.add_argument('--motd-file', metavar='file', type=str, nargs='?', help=getMessage("server-motd-argument"))
         self._argparser.add_argument('--max-chat-message-length', metavar='maxChatMessageLength', type=int, nargs='?', help=getMessage("server-chat-maxchars-argument").format(constants.MAX_CHAT_MESSAGE_LENGTH))
         self._argparser.add_argument('--max-username-length', metavar='maxUsernameLength', type=int, nargs='?', help=getMessage("server-maxusernamelength-argument").format(constants.MAX_USERNAME_LENGTH))
-        self._argparser.add_argument('--stats-db-file', metavar='file', type=str, nargs='?', help=getMessage("server-stats-db-file-argument"))
-        self._argparser.add_argument('--tls', metavar='path', type=str, nargs='?', help=getMessage("server-startTLS-argument"))
 
 
 async def _main(reactor):
@@ -87,9 +81,7 @@ async def _main(reactor):
         args.disable_ready,
         args.disable_chat,
         args.max_chat_message_length,
-        args.max_username_length,
-        args.stats_db_file,
-        args.tls
+        args.max_username_length
     )
 
     endpoint6 = TCP6ServerEndpoint(reactor, int(args.port))

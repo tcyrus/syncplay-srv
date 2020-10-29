@@ -6,16 +6,9 @@ import time
 from string import Template
 import logging
 
-from twisted.enterprise import adbapi
 from twisted.internet import task, reactor
-from twisted.internet.protocol import Factory
 
-try:
-    from OpenSSL import crypto
-    from OpenSSL.SSL import TLSv1_2_METHOD
-    from twisted.internet import ssl
-except:
-    pass
+from autobahn.twisted.websocket import WebSocketServerFactory
 
 import syncplay
 from syncplay import constants
@@ -33,13 +26,10 @@ class SyncFactory(Factory):
     disableChat: bool
     maxChatMessageLength: int
     maxUsernameLength: int
-    # certPath: Optional[str]
-    serverAcceptsTLS: bool
-    _TLSattempts: int
 
     def __init__(self, port: str = '', password: str = '', motdFilePath=None, isolateRooms: bool = False, salt=None,
                  disableReady: bool = False, disableChat: bool = False, maxChatMessageLength: int = constants.MAX_CHAT_MESSAGE_LENGTH,
-                 maxUsernameLength: int = constants.MAX_USERNAME_LENGTH, statsDbFile=None, tlsCertPath=None):
+                 maxUsernameLength: int = constants.MAX_USERNAME_LENGTH):
         logging.info(getMessage("welcome-server-notification").format(syncplay.version))
         self.isolateRooms = isolateRooms
         self.port = port
@@ -65,20 +55,6 @@ class SyncFactory(Factory):
         else:
             self._roomManager = PublicRoomManager()
 
-        self._statsDbHandle = None
-        if statsDbFile is not None:
-            self._statsDbHandle = DBManager(statsDbFile)
-            self._statsRecorder = StatsRecorder(self._statsDbHandle, self._roomManager)
-            statsDelay = 5 * (int(self.port) % 10 + 1)
-            self._statsRecorder.startRecorder(statsDelay)
-
-        self.certPath = tlsCertPath
-        self.serverAcceptsTLS = False
-        self._TLSattempts = 0
-        if self.certPath is not None:
-            self._allowTLSconnections(self.certPath)
-        else:
-            self.options = None
 
     def buildProtocol(self, addr):
         return SyncServerProtocol(self)
@@ -229,110 +205,6 @@ class SyncFactory(Factory):
             self._roomManager.broadcastRoom(watcher, lambda w: w.setPlaylistIndex(watcher.name, index))
         else:
             watcher.setPlaylistIndex(room.name, room.playlistIndex)
-
-    def _allowTLSconnections(self, path: str) -> None:
-        try:
-            privKey = open(path+'/privkey.pem', 'rt').read()
-            certif = open(path+'/cert.pem', 'rt').read()
-            chain = open(path+'/chain.pem', 'rt').read()
-
-            self.lastEditCertTime = os.path.getmtime(path+'/cert.pem')
-
-            privKeyPySSL = crypto.load_privatekey(crypto.FILETYPE_PEM, privKey)
-            certifPySSL = crypto.load_certificate(crypto.FILETYPE_PEM, certif)
-            chainPySSL = [crypto.load_certificate(crypto.FILETYPE_PEM, chain)]
-
-            cipherListString = "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:"\
-                               "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:"\
-                               "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
-            accCiphers = ssl.AcceptableCiphers.fromOpenSSLCipherString(cipherListString)
-
-            try:
-                contextFactory = ssl.CertificateOptions(privateKey=privKeyPySSL, certificate=certifPySSL,
-                                                        extraCertChain=chainPySSL, acceptableCiphers=accCiphers,
-                                                        raiseMinimumTo=ssl.TLSVersion.TLSv1_2)
-            except AttributeError:
-                contextFactory = ssl.CertificateOptions(privateKey=privKeyPySSL, certificate=certifPySSL,
-                                                        extraCertChain=chainPySSL, acceptableCiphers=accCiphers,
-                                                        method=TLSv1_2_METHOD)
-
-            self.options = contextFactory
-            self.serverAcceptsTLS = True
-            self._TLSattempts = 0
-            logging.info("TLS support is enabled.")
-        except Exception:
-            self.options = None
-            self.serverAcceptsTLS = False
-            self.lastEditCertTime = None
-            logging.exception("Error while loading the TLS certificates.")
-            logging.info("TLS support is not enabled.")
-
-    def checkLastEditCertTime(self):
-        try:
-            outTime = os.path.getmtime(self.certPath+'/cert.pem')
-        except:
-            outTime = None
-        return outTime
-
-    def updateTLSContextFactory(self) -> None:
-        self._allowTLSconnections(self.certPath)
-        self._TLSattempts += 1
-        if self._TLSattempts < constants.TLS_CERT_ROTATION_MAX_RETRIES:
-            self.serverAcceptsTLS = True
-
-
-class StatsRecorder:
-    _dbHandle: 'DBManager'
-    _roomManagerHandle: 'RoomManager'
-
-    def __init__(self, dbHandle: 'DBManager', roomManager: 'RoomManager'):
-        self._dbHandle = dbHandle
-        self._roomManagerHandle = roomManager
-
-    def startRecorder(self, delay) -> None:
-        try:
-            self._dbHandle.connect()
-            reactor.callLater(delay, self._scheduleClientSnapshot)
-        except:
-            logging.error("Failed to initialize stats database. Server Stats not enabled.")
-
-    def _scheduleClientSnapshot(self) -> None:
-        self._clientSnapshotTimer = task.LoopingCall(self._runClientSnapshot)
-        self._clientSnapshotTimer.start(constants.SERVER_STATS_SNAPSHOT_INTERVAL)
-
-    def _runClientSnapshot(self) -> None:
-        try:
-            snapshotTime = int(time.time())
-            rooms = self._roomManagerHandle.exportRooms()
-            for room in rooms.values():
-                for watcher in room.watchers:
-                    self._dbHandle.addVersionLog(snapshotTime, watcher.version)
-        except:
-            pass
-
-
-class DBManager:
-    _dbPath: str
-
-    def __init__(self, dbpath: str):
-        self._dbPath = dbpath
-        self._connection = None
-
-    def __del__(self) -> None:
-        if self._connection is not None:
-            self._connection.close()
-
-    def connect(self) -> None:
-        self._connection = adbapi.ConnectionPool("sqlite3", self._dbPath, check_same_thread=False)
-        self._createSchema()
-
-    def _createSchema(self) -> None:
-        initQuery = 'CREATE TABLE IF NOT EXISTS clients_snapshots (snapshot_time integer, version string)'
-        self._connection.runQuery(initQuery)
-
-    def addVersionLog(self, timestamp, version) -> None:
-        content = (timestamp, version, )
-        self._connection.runQuery("INSERT INTO clients_snapshots VALUES (?, ?)", content)
 
 
 class RoomManager:

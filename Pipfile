@@ -4,12 +4,11 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-certifi = "*"
 appnope = {version = ">=0.1.0", sys_platform = "== 'darwin'"}
 pypiwin32 = {version = ">=223", sys_platform = "== 'win32'"}
-#"zope.interface" = {version = ">=4.4.0", sys_platform = "== 'win32'"}
 "zope.interface" = {version = ">=4.4.0"}
-Twisted = {extras = ["tls"], version = ">=16.4.0"}
+Twisted = {version = ">=16.4.0"}
+autobahn = {extras = ["twisted", "accelerate"], version = ">=0.9.1"}
 
 [requires]
 python_version = "3.8"
