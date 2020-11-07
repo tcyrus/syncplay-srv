@@ -4,6 +4,8 @@ import sys
 import logging
 import asyncio
 
+# import uvloop
+
 from syncplay import constants
 from syncplay.messages import getMessage
 from syncplay.server import SyncFactory
@@ -94,6 +96,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
-
+    # uvloop.install()
+    asyncio.run(main())
