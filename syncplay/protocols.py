@@ -3,6 +3,7 @@ import json
 import time
 from functools import wraps
 import logging
+from typing import Optional
 
 from asyncio import Protocol
 
@@ -52,8 +53,8 @@ class JSONCommandProtocol(Protocol):
         else:
             self.handleMessages(messages)
 
-    def sendMessage(self, dict_: dict) -> None:
-        line = json.dumps(dict_)
+    def sendMessage(self, msg: dict) -> None:
+        line = json.dumps(msg)
         self.transport.write(line.encode('utf-8'))
         self.showDebugMessage(f"client/server >> {line}")
 
@@ -94,7 +95,7 @@ class SyncServerProtocol(JSONCommandProtocol):
         )))
 
     @property
-    def userIp(self):
+    def userIp(self) -> Optional[str]:
         uip = None
         if self.transport is not None:
             uip = self.transport.get_extra_info('peername')
@@ -395,6 +396,9 @@ class SyncServerProtocol(JSONCommandProtocol):
                 self.sendTLS({"startTLS": "false"})
 
     async def upgradeTransportStartTLS(self) -> None:
+        # There might be a slight issue with this since
+        # there's no mutexes to prevent transport from being used
+        # during the upgrade process
         ssl_context = self._factory.options
         transport_ = await self._factory.loop.start_tls(
             self.transport,
