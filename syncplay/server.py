@@ -5,10 +5,7 @@ import os
 import time
 from string import Template
 import logging
-
-from twisted.enterprise import adbapi
-from twisted.internet import task, reactor
-from twisted.internet.protocol import Factory
+import asyncio
 
 try:
     from OpenSSL import crypto
@@ -24,7 +21,7 @@ from syncplay.protocols import SyncServerProtocol
 from syncplay.utils import RoomPasswordProvider, NotControlledRoom, RandomStringGenerator, meetsMinVersion, playlistIsValid, truncateText
 
 
-class SyncFactory(Factory):
+class SyncFactory():
     isolateRooms: bool
     port: str
     password: str
@@ -65,12 +62,14 @@ class SyncFactory(Factory):
         else:
             self._roomManager = PublicRoomManager()
 
-        self._statsDbHandle = None
-        if statsDbFile is not None:
-            self._statsDbHandle = DBManager(statsDbFile)
-            self._statsRecorder = StatsRecorder(self._statsDbHandle, self._roomManager)
-            statsDelay = 5 * (int(self.port) % 10 + 1)
-            self._statsRecorder.startRecorder(statsDelay)
+        #self._statsDbHandle = None
+        #if statsDbFile is not None:
+        #    self._statsDbHandle = DBManager(statsDbFile)
+        #    self._statsRecorder = StatsRecorder(self._statsDbHandle, self._roomManager)
+        #    statsDelay = 5 * (int(self.port) % 10 + 1)
+        #    self._statsRecorder.startRecorder(statsDelay)
+
+        self.loop = asyncio.get_event_loop()
 
         self.certPath = tlsCertPath
         self.serverAcceptsTLS = False
@@ -80,8 +79,12 @@ class SyncFactory(Factory):
         else:
             self.options = None
 
-    def buildProtocol(self, addr):
-        return SyncServerProtocol(self)
+    async def buildProtocol(self):
+        return await self.loop.create_server(
+            lambda: SyncServerProtocol(self),
+            None,
+            self.port
+        )
 
     def sendState(self, watcher: 'Watcher', doSeek: bool = False, forcedUpdate: bool = False) -> None:
         room = watcher.room
@@ -242,10 +245,12 @@ class SyncFactory(Factory):
             certifPySSL = crypto.load_certificate(crypto.FILETYPE_PEM, certif)
             chainPySSL = [crypto.load_certificate(crypto.FILETYPE_PEM, chain)]
 
-            cipherListString = "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:"\
-                               "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:"\
-                               "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
-            accCiphers = ssl.AcceptableCiphers.fromOpenSSLCipherString(cipherListString)
+            cipherList = [
+                "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305",
+                "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256",
+                "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
+            ]
+            accCiphers = ssl.AcceptableCiphers.fromOpenSSLCipherString(':'.join(cipherList))
 
             try:
                 contextFactory = ssl.CertificateOptions(privateKey=privKeyPySSL, certificate=certifPySSL,
@@ -281,58 +286,58 @@ class SyncFactory(Factory):
             self.serverAcceptsTLS = True
 
 
-class StatsRecorder:
-    _dbHandle: 'DBManager'
-    _roomManagerHandle: 'RoomManager'
+# class StatsRecorder:
+#     _dbHandle: 'DBManager'
+#     _roomManagerHandle: 'RoomManager'
 
-    def __init__(self, dbHandle: 'DBManager', roomManager: 'RoomManager'):
-        self._dbHandle = dbHandle
-        self._roomManagerHandle = roomManager
+#     def __init__(self, dbHandle: 'DBManager', roomManager: 'RoomManager'):
+#         self._dbHandle = dbHandle
+#         self._roomManagerHandle = roomManager
 
-    def startRecorder(self, delay) -> None:
-        try:
-            self._dbHandle.connect()
-            reactor.callLater(delay, self._scheduleClientSnapshot)
-        except:
-            logging.error("Failed to initialize stats database. Server Stats not enabled.")
+#     def startRecorder(self, delay) -> None:
+#         try:
+#             self._dbHandle.connect()
+#             reactor.callLater(delay, self._scheduleClientSnapshot)
+#         except:
+#             logging.error("Failed to initialize stats database. Server Stats not enabled.")
 
-    def _scheduleClientSnapshot(self) -> None:
-        self._clientSnapshotTimer = task.LoopingCall(self._runClientSnapshot)
-        self._clientSnapshotTimer.start(constants.SERVER_STATS_SNAPSHOT_INTERVAL)
+#     def _scheduleClientSnapshot(self) -> None:
+#         self._clientSnapshotTimer = task.LoopingCall(self._runClientSnapshot)
+#         self._clientSnapshotTimer.start(constants.SERVER_STATS_SNAPSHOT_INTERVAL)
 
-    def _runClientSnapshot(self) -> None:
-        try:
-            snapshotTime = int(time.time())
-            rooms = self._roomManagerHandle.exportRooms()
-            for room in rooms.values():
-                for watcher in room.watchers:
-                    self._dbHandle.addVersionLog(snapshotTime, watcher.version)
-        except:
-            pass
+#     def _runClientSnapshot(self) -> None:
+#         try:
+#             snapshotTime = int(time.time())
+#             rooms = self._roomManagerHandle.exportRooms()
+#             for room in rooms.values():
+#                 for watcher in room.watchers:
+#                     self._dbHandle.addVersionLog(snapshotTime, watcher.version)
+#         except:
+#             pass
 
 
-class DBManager:
-    _dbPath: str
+# class DBManager:
+#     _dbPath: str
 
-    def __init__(self, dbpath: str):
-        self._dbPath = dbpath
-        self._connection = None
+#     def __init__(self, dbpath: str):
+#         self._dbPath = dbpath
+#         self._connection = None
 
-    def __del__(self) -> None:
-        if self._connection is not None:
-            self._connection.close()
+#     def __del__(self) -> None:
+#         if self._connection is not None:
+#             self._connection.close()
 
-    def connect(self) -> None:
-        self._connection = adbapi.ConnectionPool("sqlite3", self._dbPath, check_same_thread=False)
-        self._createSchema()
+#     def connect(self) -> None:
+#         self._connection = adbapi.ConnectionPool("sqlite3", self._dbPath, check_same_thread=False)
+#         self._createSchema()
 
-    def _createSchema(self) -> None:
-        initQuery = 'CREATE TABLE IF NOT EXISTS clients_snapshots (snapshot_time integer, version string)'
-        self._connection.runQuery(initQuery)
+#     def _createSchema(self) -> None:
+#         initQuery = 'CREATE TABLE IF NOT EXISTS clients_snapshots (snapshot_time integer, version string)'
+#         self._connection.runQuery(initQuery)
 
-    def addVersionLog(self, timestamp, version) -> None:
-        content = (timestamp, version, )
-        self._connection.runQuery("INSERT INTO clients_snapshots VALUES (?, ?)", content)
+#     def addVersionLog(self, timestamp, version) -> None:
+#         content = (timestamp, version, )
+#         self._connection.runQuery("INSERT INTO clients_snapshots VALUES (?, ?)", content)
 
 
 class RoomManager:
@@ -729,4 +734,3 @@ class Watcher:
     def isController(self) -> bool:
         return RoomPasswordProvider.isControlledRoom(self._room.name) \
             and self._room.canControl(self)
-

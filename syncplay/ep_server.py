@@ -2,12 +2,7 @@ import argparse
 import os
 import sys
 import logging
-
-from twisted.internet.task import react
-from twisted.internet.defer import ensureDeferred, Deferred
-
-from twisted.internet.endpoints import TCP4ServerEndpoint, TCP6ServerEndpoint
-from twisted.internet.error import CannotListenError
+import asyncio
 
 from syncplay import constants
 from syncplay.messages import getMessage
@@ -75,7 +70,7 @@ class ConfigurationGetter:
         self._argparser.add_argument('--tls', metavar='path', type=str, nargs='?', help=getMessage("server-startTLS-argument"))
 
 
-async def _main(reactor):
+async def main():
     argsGetter = ConfigurationGetter()
     args = argsGetter.getConfiguration()
     factory = SyncFactory(
@@ -92,42 +87,13 @@ async def _main(reactor):
         args.tls
     )
 
-    endpoint6 = TCP6ServerEndpoint(reactor, int(args.port))
-    listening6 = False
-    try:
-        await endpoint6.listen(factory)
-    except CannotListenError as e:
-        logging.debug(e.value)
-        logging.error("IPv6 listening failed.")
-    else:
-        listening6 = True
+    server = await factory.buildProtocol()
 
-    endpoint4 = TCP4ServerEndpoint(reactor, int(args.port))
-    listening4 = False
-    try:
-        await endpoint4.listen(factory)
-    except CannotListenError as e:
-        if not listening6:
-            logging.debug(e.value)
-            logging.error("IPv4 listening failed.")
-    else:
-        listening4 = True
-
-    if listening6 or listening4:
-        # reactor.run()
-        await Deferred()
-    else:
-        logging.error("Unable to listen using either IPv4 and IPv6 protocols. Quitting the server now.")
-        sys.exit()
-
-
-def main():
-    return react(
-        lambda reactor: ensureDeferred(
-            _main(reactor)
-        )
-    )
+    async with server:
+        await server.serve_forever()
 
 
 if __name__ == "__main__":
-    main()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
+

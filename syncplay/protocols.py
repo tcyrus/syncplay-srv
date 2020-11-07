@@ -4,7 +4,7 @@ import time
 from functools import wraps
 import logging
 
-from twisted.protocols.basic import LineReceiver
+from asyncio import Protocol
 
 import syncplay
 from syncplay.constants import PING_MOVING_AVERAGE_WEIGHT, CONTROLLED_ROOMS_MIN_VERSION, USER_READY_MIN_VERSION, SHARED_PLAYLIST_MIN_VERSION, CHAT_MIN_VERSION
@@ -12,7 +12,7 @@ from syncplay.messages import getMessage
 from syncplay.utils import meetsMinVersion
 
 
-class JSONCommandProtocol(LineReceiver):
+class JSONCommandProtocol(Protocol):
     def handleMessages(self, messages: dict) -> None:
         for command, message in messages.items():
             if command == "Hello":
@@ -33,7 +33,9 @@ class JSONCommandProtocol(LineReceiver):
                 # TODO: log, not drop
                 self.dropWithError(getMessage("unknown-command-server-error").format(message))
 
-    def lineReceived(self, line: bytes) -> None:
+    def data_received(self, line: bytes) -> None:
+        # Might not work the same as LineReceiver
+        # This should be fine... probably
         try:
             line = line.decode('utf-8').strip()
         except UnicodeDecodeError:
@@ -52,11 +54,11 @@ class JSONCommandProtocol(LineReceiver):
 
     def sendMessage(self, dict_: dict) -> None:
         line = json.dumps(dict_)
-        self.sendLine(line.encode('utf-8'))
+        self.transport.write(line.encode('utf-8'))
         self.showDebugMessage(f"client/server >> {line}")
 
     def drop(self):
-        self.transport.loseConnection()
+        self.transport.close()
 
     def dropWithError(self, error):
         raise NotImplementedError()
@@ -83,18 +85,29 @@ class SyncServerProtocol(JSONCommandProtocol):
         self._clientLatencyCalculation = 0
         self._clientLatencyCalculationArrivalTime = 0
         self._watcher = None
+        self.transport = None
 
     def __hash__(self) -> int:
         return hash('|'.join((
-            self.transport.getPeer().host,
+            self.userIp,
             str(id(self)),
         )))
+
+    @property
+    def userIp(self):
+        uip = None
+        if self.transport is not None:
+            uip = self.transport.get_extra_info('peername')
+        return uip
+
+    def connection_made(self, transport):
+        self.transport = transport
 
     def showDebugMessage(self, line) -> None:
         pass
 
     def dropWithError(self, error) -> None:
-        logging.error(getMessage("client-drop-server-error").format(self.transport.getPeer().host, error))
+        logging.error(getMessage("client-drop-server-error").format(self.uip, error))
         self.sendError(error)
         self.drop()
 
@@ -179,7 +192,7 @@ class SyncServerProtocol(JSONCommandProtocol):
         hello = {}
         username = self._watcher.name
         hello["username"] = username
-        userIp = self.transport.getPeer().host
+        userIp = self.userIp
         room = self._watcher.room
         if room:
             hello["room"] = {"name": room.name}
@@ -373,11 +386,23 @@ class SyncServerProtocol(JSONCommandProtocol):
                     self._factory.updateTLSContextFactory()
                 if self._factory.options is not None:
                     self.sendTLS({"startTLS": "true"})
-                    self.transport.startTLS(self._factory.options)
+                    self._factory.loop.call_soon(
+                        lambda: self.upgradeTransportStartTLS()
+                    )
                 else:
                     self.sendTLS({"startTLS": "false"})
             else:
                 self.sendTLS({"startTLS": "false"})
+
+    async def upgradeTransportStartTLS(self) -> None:
+        ssl_context = self._factory.options
+        transport_ = await self._factory.loop.start_tls(
+            self.transport,
+            self,
+            ssl_context,
+            server_side=True
+        )
+        self.transport = transport_
 
 
 class PingService:
