@@ -10,6 +10,7 @@ from typing import Optional, Union
 
 try:
     from OpenSSL import crypto
+    from OpenSSL.SSL import Context as OpenSSLContext
     from OpenSSL.SSL import TLSv1_2_METHOD
 except:
     pass
@@ -243,25 +244,21 @@ class SyncFactory():
 
             privKeyPySSL = crypto.load_privatekey(crypto.FILETYPE_PEM, privKey)
             certifPySSL = crypto.load_certificate(crypto.FILETYPE_PEM, certif)
-            chainPySSL = [crypto.load_certificate(crypto.FILETYPE_PEM, chain)]
+            chainPySSL = crypto.load_certificate(crypto.FILETYPE_PEM, chain)
 
             cipherList = [
                 "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305",
                 "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256",
                 "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
             ]
-            accCiphers = ssl.AcceptableCiphers.fromOpenSSLCipherString(':'.join(cipherList))
 
-            try:
-                contextFactory = ssl.CertificateOptions(privateKey=privKeyPySSL, certificate=certifPySSL,
-                                                        extraCertChain=chainPySSL, acceptableCiphers=accCiphers,
-                                                        raiseMinimumTo=ssl.TLSVersion.TLSv1_2)
-            except AttributeError:
-                contextFactory = ssl.CertificateOptions(privateKey=privKeyPySSL, certificate=certifPySSL,
-                                                        extraCertChain=chainPySSL, acceptableCiphers=accCiphers,
-                                                        method=TLSv1_2_METHOD)
+            context = OpenSSLContext(TLSv1_2_METHOD)
+            context.use_privatekey(privKeyPySSL)
+            context.use_certificate(certifPySSL)
+            context.add_extra_chain_cert(chainPySSL)
+            context.set_cipher_list(':'.join(cipherList))
 
-            self.options = contextFactory
+            self.options = context
             self.serverAcceptsTLS = True
             self._TLSattempts = 0
             logging.info("TLS support is enabled.")
