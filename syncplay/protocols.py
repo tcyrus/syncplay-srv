@@ -71,8 +71,6 @@ class LineReceiver(Protocol, _PauseableMixin):
 class JSONCommandProtocol(LineReceiver):
     _loop = None
 
-
-
     def line_received(self, line: bytes) -> None:
         # Might not work the same as LineReceiver
         # This should be fine... probably
@@ -102,9 +100,9 @@ class JSONCommandProtocol(LineReceiver):
     def drop(self):
         self.transport.close()
 
-    def dropWithError(self, error):
+    def dropWithError(self, _error):
         raise NotImplementedError()
-    
+
     async def handleMessages(self, _messages: dict) -> None:
         raise NotImplementedError()
 
