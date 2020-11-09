@@ -4,7 +4,7 @@ import time
 from functools import wraps
 import logging
 from typing import Optional
-
+import asyncio
 from asyncio import BaseTransport, Protocol
 
 import syncplay
@@ -52,16 +52,12 @@ class LineReceiver(Protocol):
                 break
             self.line_received(line)
 
-    def create_task(self, awaitable) -> None:
-        if self._loop is not None:
-            self._loop.create_task(awaitable)
-
     def line_received(self, line) -> None:
         raise NotImplementedError
 
 
 class JSONCommandProtocol(LineReceiver):
-    async def handleMessages(self, messages: dict) -> None:
+    def handleMessages(self, messages: dict) -> None:
         for command, message in messages.items():
             if command == "Hello":
                 self.handleHello(message)
@@ -98,9 +94,7 @@ class JSONCommandProtocol(LineReceiver):
             self.dropWithError(getMessage("not-json-server-error").format(line))
             return
         else:
-            self.loop.create_task(
-                self.handleMessages(messages)
-            )
+            self.handleMessages(messages)
 
     def sendMessage(self, msg: dict) -> None:
         line = json.dumps(msg)
@@ -422,7 +416,7 @@ class SyncServerProtocol(JSONCommandProtocol):
     def sendTLS(self, message) -> None:
         self.sendMessage({"TLS": message})
 
-    async def handleTLS(self, message) -> None:
+    def handleTLS(self, message) -> None:
         inquiry = message.get("startTLS")
         if "send" in inquiry:
             if not self.isLogged() and self._factory.serverAcceptsTLS:
@@ -431,7 +425,9 @@ class SyncServerProtocol(JSONCommandProtocol):
                     self._factory.updateTLSContextFactory()
                 if self._factory.options is not None:
                     self.sendTLS({"startTLS": "true"})
-                    await self.upgradeTransportStartTLS()
+                    asyncio.ensure_future(
+                        self.upgradeTransportStartTLS()
+                    )
                 else:
                     self.sendTLS({"startTLS": "false"})
             else:
