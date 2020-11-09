@@ -5,7 +5,7 @@ from functools import wraps
 import logging
 from typing import Optional
 
-from asyncio import Protocol
+from asyncio import BaseTransport, Protocol
 
 import syncplay
 from syncplay.constants import PING_MOVING_AVERAGE_WEIGHT, CONTROLLED_ROOMS_MIN_VERSION, USER_READY_MIN_VERSION, SHARED_PLAYLIST_MIN_VERSION, CHAT_MIN_VERSION
@@ -13,7 +13,49 @@ from syncplay.messages import getMessage
 from syncplay.utils import meetsMinVersion
 
 
-class JSONCommandProtocol(Protocol):
+class LineReceiver(Protocol):
+    # Stolen from:
+    # pu.aio.protocols.basic.LineReceiver
+    # with some minor modifications
+    _buffer = b''
+    _delimiter = None
+
+    def _guess_delimiter(self) -> None:
+        if b'\r\n' in self._buffer:
+            self._delimiter = b'\r\n'
+        elif b'\n' in self._buffer:
+            self._delimiter = b'\n'
+        elif b'\r' in self._buffer:
+            self._delimiter = b'\r'
+
+    def connection_made(self, transport: BaseTransport) -> None:
+        self.transport = transport
+
+    def write_line(self, line: bytes) -> None:
+        delimiter = self._delimiter or b'\r\n'
+        data = line + delimiter
+        self.transport.write(data)
+
+    def data_received(self, data: bytes) -> None:
+        self._buffer += data
+
+        if not self._delimiter:
+            self._guess_delimiter()
+            if not self._delimiter:
+                return
+
+        while self._buffer:
+            try:
+                line, self._buffer = self._buffer.split(self._delimiter, 1)
+            except:
+                break
+            self.line_received(line)
+
+    def line_received(self, line) -> None:
+        raise NotImplementedError
+
+
+class JSONCommandProtocol(LineReceiver):
     def handleMessages(self, messages: dict) -> None:
         for command, message in messages.items():
             if command == "Hello":
@@ -34,7 +76,7 @@ class JSONCommandProtocol(Protocol):
                 # TODO: log, not drop
                 self.dropWithError(getMessage("unknown-command-server-error").format(message))
 
-    def data_received(self, line: bytes) -> None:
+    def line_received(self, line: bytes) -> None:
         # Might not work the same as LineReceiver
         # This should be fine... probably
         try:
@@ -56,7 +98,7 @@ class JSONCommandProtocol(Protocol):
     def sendMessage(self, msg: dict) -> None:
         line = json.dumps(msg)
         logging.debug(f"client/server >> {line}")
-        self.transport.write(line.encode('utf-8'))
+        self.write_line(line.encode('utf-8'))
 
     def drop(self):
         self.transport.close()
@@ -100,9 +142,6 @@ class SyncServerProtocol(JSONCommandProtocol):
         if self.transport is not None:
             uip = self.transport.get_extra_info('peername')
         return uip
-
-    def connection_made(self, transport):
-        self.transport = transport
 
     def dropWithError(self, error) -> None:
         logging.error(getMessage("client-drop-server-error").format(self.uip, error))
