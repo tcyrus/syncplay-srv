@@ -51,6 +51,9 @@ class LineReceiver(Protocol):
                 break
             self.line_received(line)
 
+    def create_task(self, awaitable) -> None:
+        raise NotImplementedError
+
     def line_received(self, line) -> None:
         raise NotImplementedError
 
@@ -135,6 +138,9 @@ class SyncServerProtocol(JSONCommandProtocol):
             self.userIp,
             str(id(self)),
         )))
+
+    def create_task(self, awaitable) -> None:
+        self._factory.loop.create_task(awaitable)
 
     @property
     def userIp(self) -> Optional[str]:
@@ -424,7 +430,7 @@ class SyncServerProtocol(JSONCommandProtocol):
                 if self._factory.options is not None:
                     self.sendTLS({"startTLS": "true"})
                     self._factory.loop.call_soon(
-                        lambda: self.upgradeTransportStartTLS()
+                        self.upgradeTransportStartTLS()
                     )
                 else:
                     self.sendTLS({"startTLS": "false"})

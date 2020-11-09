@@ -9,6 +9,6 @@ import logging
 from syncplay import ep_server
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     # uvloop.install()
     asyncio.run(ep_server.main())

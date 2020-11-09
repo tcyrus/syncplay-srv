@@ -423,9 +423,9 @@ class Room:
     STATE_PLAYING = 1
 
     _name: str
-    _watchers: Dict[str, Watcher]
+    # _watchers: Dict[str, Watcher]
     _playState: int
-    _setBy: Optional[Watcher]
+    # _setBy: Optional[Watcher]
     _playlist: list
     _playlistIndex: Optional[int]
     _lastUpdate: float
@@ -522,7 +522,7 @@ class Room:
     @property
     def playlistIndex(self):
         return self._playlistIndex
-    
+
     @playlistIndex.setter
     def playlistIndex(self, index) -> None:
         self.setPlaylistIndex(index)
