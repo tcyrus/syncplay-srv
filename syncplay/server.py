@@ -6,6 +6,7 @@ import time
 from string import Template
 import logging
 import asyncio
+from typing import Dict, Optional, Union
 
 try:
     from OpenSSL import crypto
@@ -30,7 +31,7 @@ class SyncFactory():
     disableChat: bool
     maxChatMessageLength: int
     maxUsernameLength: int
-    # certPath: Optional[str]
+    certPath: Optional[str]
     serverAcceptsTLS: bool
     _TLSattempts: int
 
@@ -341,7 +342,7 @@ class SyncFactory():
 
 
 class RoomManager:
-    # _rooms: Dict[str, Room]
+    _rooms: Dict[str, Room]
 
     def __init__(self):
         self._rooms = {}
@@ -422,13 +423,13 @@ class Room:
     STATE_PLAYING = 1
 
     _name: str
-    # _watchers: Dict[str, Watcher]
+    _watchers: Dict[str, Watcher]
     _playState: int
-    # _setBy: Optional[Watcher]
+    _setBy: Optional[Watcher]
     _playlist: list
-    # _playlistIndex: Optional[int]
+    _playlistIndex: Optional[int]
     _lastUpdate: float
-    # _position: Union[int, float]
+    _position: Union[int, float]
 
     def __init__(self, name: str):
         self._name = name
