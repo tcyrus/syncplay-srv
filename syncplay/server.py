@@ -11,7 +11,6 @@ from typing import Optional, Union
 try:
     from OpenSSL import crypto
     from OpenSSL.SSL import TLSv1_2_METHOD
-    from twisted.internet import ssl
 except:
     pass
 
