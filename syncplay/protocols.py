@@ -71,25 +71,7 @@ class LineReceiver(Protocol, _PauseableMixin):
 class JSONCommandProtocol(LineReceiver):
     _loop = None
 
-    async def handleMessages(self, messages: dict) -> None:
-        for command, message in messages.items():
-            if command == "Hello":
-                self.handleHello(message)
-            elif command == "Set":
-                self.handleSet(message)
-            elif command == "List":
-                self.handleList(message)
-            elif command == "State":
-                self.handleState(message)
-            elif command == "Error":
-                self.handleError(message)
-            elif command == "Chat":
-                self.handleChat(message)
-            elif command == "TLS":
-                await self.handleTLS(message)
-            else:
-                # TODO: log, not drop
-                self.dropWithError(getMessage("unknown-command-server-error").format(message))
+
 
     def line_received(self, line: bytes) -> None:
         # Might not work the same as LineReceiver
@@ -122,6 +104,9 @@ class JSONCommandProtocol(LineReceiver):
 
     def dropWithError(self, error):
         raise NotImplementedError()
+    
+    async def handleMessages(self, _messages: dict) -> None:
+        raise NotImplementedError()
 
 
 def requireLogged(f):
@@ -153,6 +138,26 @@ class SyncServerProtocol(JSONCommandProtocol):
             self.userIp,
             str(id(self)),
         )))
+
+    async def handleMessages(self, messages: dict) -> None:
+        for command, message in messages.items():
+            if command == "Hello":
+                self.handleHello(message)
+            elif command == "Set":
+                self.handleSet(message)
+            elif command == "List":
+                self.handleList(message)
+            elif command == "State":
+                self.handleState(message)
+            elif command == "Error":
+                self.handleError(message)
+            elif command == "Chat":
+                self.handleChat(message)
+            elif command == "TLS":
+                await self.handleTLS(message)
+            else:
+                # TODO: log, not drop
+                self.dropWithError(getMessage("unknown-command-server-error").format(message))
 
     @property
     def userIp(self) -> Optional[str]:
