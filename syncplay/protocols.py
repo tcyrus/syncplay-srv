@@ -19,6 +19,7 @@ class LineReceiver(Protocol):
     # with some minor modifications
     _buffer = b''
     _delimiter = None
+    _loop = None
 
     def _guess_delimiter(self) -> None:
         if b'\r\n' in self._buffer:
@@ -52,14 +53,15 @@ class LineReceiver(Protocol):
             self.line_received(line)
 
     def create_task(self, awaitable) -> None:
-        raise NotImplementedError
+        if self._loop is not None:
+            self._loop.create_task(awaitable)
 
     def line_received(self, line) -> None:
         raise NotImplementedError
 
 
 class JSONCommandProtocol(LineReceiver):
-    def handleMessages(self, messages: dict) -> None:
+    async def handleMessages(self, messages: dict) -> None:
         for command, message in messages.items():
             if command == "Hello":
                 self.handleHello(message)
@@ -74,7 +76,7 @@ class JSONCommandProtocol(LineReceiver):
             elif command == "Chat":
                 self.handleChat(message)
             elif command == "TLS":
-                self.handleTLS(message)
+                await self.handleTLS(message)
             else:
                 # TODO: log, not drop
                 self.dropWithError(getMessage("unknown-command-server-error").format(message))
@@ -96,7 +98,9 @@ class JSONCommandProtocol(LineReceiver):
             self.dropWithError(getMessage("not-json-server-error").format(line))
             return
         else:
-            self.handleMessages(messages)
+            self.loop.create_task(
+                self.handleMessages(messages)
+            )
 
     def sendMessage(self, msg: dict) -> None:
         line = json.dumps(msg)
@@ -122,6 +126,7 @@ def requireLogged(f):
 class SyncServerProtocol(JSONCommandProtocol):
     def __init__(self, factory):
         self._factory = factory
+        self._loop = factory.loop
         self._version = None
         self._features = None
         self._logged = False
@@ -138,9 +143,6 @@ class SyncServerProtocol(JSONCommandProtocol):
             self.userIp,
             str(id(self)),
         )))
-
-    def create_task(self, awaitable) -> None:
-        self._factory.loop.create_task(awaitable)
 
     @property
     def userIp(self) -> Optional[str]:
@@ -420,7 +422,7 @@ class SyncServerProtocol(JSONCommandProtocol):
     def sendTLS(self, message) -> None:
         self.sendMessage({"TLS": message})
 
-    def handleTLS(self, message) -> None:
+    async def handleTLS(self, message) -> None:
         inquiry = message.get("startTLS")
         if "send" in inquiry:
             if not self.isLogged() and self._factory.serverAcceptsTLS:
@@ -429,9 +431,7 @@ class SyncServerProtocol(JSONCommandProtocol):
                     self._factory.updateTLSContextFactory()
                 if self._factory.options is not None:
                     self.sendTLS({"startTLS": "true"})
-                    self._factory.loop.call_soon(
-                        self.upgradeTransportStartTLS()
-                    )
+                    await self.upgradeTransportStartTLS()
                 else:
                     self.sendTLS({"startTLS": "false"})
             else:
@@ -442,6 +442,7 @@ class SyncServerProtocol(JSONCommandProtocol):
         # there's no mutexes to prevent transport from being used
         # during the upgrade process
         ssl_context = self._factory.options
+        self.transport.pause_reading()
         transport_ = await self._factory.loop.start_tls(
             self.transport,
             self,
@@ -449,6 +450,7 @@ class SyncServerProtocol(JSONCommandProtocol):
             server_side=True
         )
         self.transport = transport_
+        self.transport.resume_reading()
 
 
 class PingService:
