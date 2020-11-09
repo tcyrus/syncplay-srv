@@ -8,12 +8,13 @@ import logging
 import asyncio
 from typing import Optional, Union
 
-try:
-    from OpenSSL import crypto
-    from OpenSSL.SSL import Context as OpenSSLContext
-    from OpenSSL.SSL import TLSv1_2_METHOD
-except:
-    pass
+import ssl
+# try:
+#     from OpenSSL import crypto
+#     from OpenSSL.SSL import Context as OpenSSLContext
+#     from OpenSSL.SSL import TLSv1_2_METHOD
+# except:
+#     pass
 
 import syncplay
 from syncplay import constants
@@ -236,15 +237,15 @@ class SyncFactory():
 
     def _allowTLSconnections(self, path: str) -> None:
         try:
-            privKey = open(path+'/privkey.pem', 'rt').read()
-            certif = open(path+'/cert.pem', 'rt').read()
-            chain = open(path+'/chain.pem', 'rt').read()
+            # privKey = open(path+'/privkey.pem', 'rt').read()
+            # certif = open(path+'/cert.pem', 'rt').read()
+            # chain = open(path+'/chain.pem', 'rt').read()
 
             self.lastEditCertTime = os.path.getmtime(path+'/cert.pem')
 
-            privKeyPySSL = crypto.load_privatekey(crypto.FILETYPE_PEM, privKey)
-            certifPySSL = crypto.load_certificate(crypto.FILETYPE_PEM, certif)
-            chainPySSL = crypto.load_certificate(crypto.FILETYPE_PEM, chain)
+            # privKeyPySSL = crypto.load_privatekey(crypto.FILETYPE_PEM, privKey)
+            # certifPySSL = crypto.load_certificate(crypto.FILETYPE_PEM, certif)
+            # chainPySSL = crypto.load_certificate(crypto.FILETYPE_PEM, chain)
 
             cipherList = [
                 "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305",
@@ -252,11 +253,15 @@ class SyncFactory():
                 "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
             ]
 
-            context = OpenSSLContext(TLSv1_2_METHOD)
-            context.use_privatekey(privKeyPySSL)
-            context.use_certificate(certifPySSL)
-            context.add_extra_chain_cert(chainPySSL)
-            context.set_cipher_list(':'.join(cipherList))
+            # context = OpenSSLContext(TLSv1_2_METHOD)
+            # context.use_privatekey(privKeyPySSL)
+            # context.use_certificate(certifPySSL)
+            # context.add_extra_chain_cert(chainPySSL)
+            # context.set_cipher_list(':'.join(cipherList))
+            context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+            context.load_verify_locations(path+'/chain.pem')
+            context.load_cert_chain(path+'/cert.pem', path+'/privkey.pem')
+            context.set_ciphers(':'.join(cipherList))
 
             self.options = context
             self.serverAcceptsTLS = True
