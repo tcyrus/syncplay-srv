@@ -6,7 +6,7 @@ import time
 from string import Template
 import logging
 import asyncio
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
 try:
     from OpenSSL import crypto
@@ -342,7 +342,7 @@ class SyncFactory():
 
 
 class RoomManager:
-    _rooms: Dict[str, Room]
+    # _rooms: Dict[str, Room]
 
     def __init__(self):
         self._rooms = {}
