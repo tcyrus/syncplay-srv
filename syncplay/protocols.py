@@ -13,13 +13,25 @@ from syncplay.messages import getMessage
 from syncplay.utils import meetsMinVersion
 
 
-class LineReceiver(Protocol):
+class _PauseableMixin:
+    _paused = False
+ 
+    def pause_reading(self) -> None:
+        self._paused = True
+        self.transport.pause_reading()
+ 
+    def resume_reading(self) -> None:
+        self._paused = False
+        self.transport.resume_reading()
+        self.data_received(b'')
+
+
+class LineReceiver(Protocol, _PauseableMixin):
     # Stolen from:
     # pu.aio.protocols.basic.LineReceiver
     # with some minor modifications
     _buffer = b''
     _delimiter = None
-    _loop = None
 
     def _guess_delimiter(self) -> None:
         if b'\r\n' in self._buffer:
@@ -45,7 +57,7 @@ class LineReceiver(Protocol):
             if not self._delimiter:
                 return
 
-        while self._buffer:
+        while self._buffer and not self._paused:
             try:
                 line, self._buffer = self._buffer.split(self._delimiter, 1)
             except:
@@ -57,7 +69,9 @@ class LineReceiver(Protocol):
 
 
 class JSONCommandProtocol(LineReceiver):
-    def handleMessages(self, messages: dict) -> None:
+    _loop = None
+
+    async def handleMessages(self, messages: dict) -> None:
         for command, message in messages.items():
             if command == "Hello":
                 self.handleHello(message)
@@ -94,7 +108,9 @@ class JSONCommandProtocol(LineReceiver):
             self.dropWithError(getMessage("not-json-server-error").format(line))
             return
         else:
-            self.handleMessages(messages)
+            coro = self.handleMessages(messages)
+            if self._loop is not None:
+                self._loop.create_task(coro)
 
     def sendMessage(self, msg: dict) -> None:
         line = json.dumps(msg)
@@ -416,7 +432,7 @@ class SyncServerProtocol(JSONCommandProtocol):
     def sendTLS(self, message) -> None:
         self.sendMessage({"TLS": message})
 
-    def handleTLS(self, message) -> None:
+    async def handleTLS(self, message) -> None:
         inquiry = message.get("startTLS")
         if "send" in inquiry:
             if not self.isLogged() and self._factory.serverAcceptsTLS:
@@ -425,9 +441,7 @@ class SyncServerProtocol(JSONCommandProtocol):
                     self._factory.updateTLSContextFactory()
                 if self._factory.options is not None:
                     self.sendTLS({"startTLS": "true"})
-                    asyncio.ensure_future(
-                        self.upgradeTransportStartTLS()
-                    )
+                    await self.upgradeTransportStartTLS()
                 else:
                     self.sendTLS({"startTLS": "false"})
             else:
@@ -437,8 +451,10 @@ class SyncServerProtocol(JSONCommandProtocol):
         # There might be a slight issue with this since
         # there's no mutexes to prevent transport from being used
         # during the upgrade process
+        # The best thing I could do to avoid a race condition is
+        # to pause reading on the transport and hope for the best
         ssl_context = self._factory.options
-        self.transport.pause_reading()
+        self.pause_reading()
         transport_ = await self._factory.loop.start_tls(
             self.transport,
             self,
@@ -446,7 +462,7 @@ class SyncServerProtocol(JSONCommandProtocol):
             server_side=True
         )
         self.transport = transport_
-        self.transport.resume_reading()
+        self.resume_reading()
 
 
 class PingService:
