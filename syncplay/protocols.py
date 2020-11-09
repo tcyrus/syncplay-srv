@@ -44,7 +44,7 @@ class JSONCommandProtocol(Protocol):
             return
         if not line:
             return
-        self.showDebugMessage(f"client/server << {line}")
+        logging.debug(f"client/server << {line}")
         try:
             messages = json.loads(line)
         except json.decoder.JSONDecodeError:
@@ -55,8 +55,8 @@ class JSONCommandProtocol(Protocol):
 
     def sendMessage(self, msg: dict) -> None:
         line = json.dumps(msg)
+        logging.debug(f"client/server >> {line}")
         self.transport.write(line.encode('utf-8'))
-        self.showDebugMessage(f"client/server >> {line}")
 
     def drop(self):
         self.transport.close()
@@ -103,9 +103,6 @@ class SyncServerProtocol(JSONCommandProtocol):
 
     def connection_made(self, transport):
         self.transport = transport
-
-    def showDebugMessage(self, line) -> None:
-        pass
 
     def dropWithError(self, error) -> None:
         logging.error(getMessage("client-drop-server-error").format(self.uip, error))
