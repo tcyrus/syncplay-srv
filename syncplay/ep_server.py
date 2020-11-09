@@ -2,9 +2,6 @@ import argparse
 import os
 import sys
 import logging
-import asyncio
-
-# import uvloop
 
 from syncplay import constants
 from syncplay.messages import getMessage
@@ -93,8 +90,3 @@ async def main():
 
     async with server:
         await server.serve_forever()
-
-
-if __name__ == "__main__":
-    # uvloop.install()
-    asyncio.run(main())
