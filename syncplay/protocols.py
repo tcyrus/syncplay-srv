@@ -15,8 +15,8 @@ from syncplay.utils import meetsMinVersion
 
 class _PauseableMixin:
     @property
-    def _paused(self) -> bool:
-        return not self.transport.is_reading()
+    def _reading(self) -> bool:
+        return self.transport.is_reading()
 
     def pause_reading(self) -> None:
         self.transport.pause_reading()
@@ -56,7 +56,7 @@ class LineReceiver(Protocol, _PauseableMixin):
             if not self._delimiter:
                 return
 
-        while self._buffer and not self._paused:
+        while self._buffer and self._reading:
             try:
                 line, self._buffer = self._buffer.split(self._delimiter, 1)
             except:
