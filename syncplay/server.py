@@ -604,7 +604,7 @@ class Watcher:
         self._lastUpdatedOn = time.time()
         self._sendStateTimer = None
         self._connector.setWatcher(self)
-        self._server.loop.call_soon(self._scheduleSendState)
+        self._server.loop.create_task(self._scheduleSendState())
 
     def setFile(self, file_) -> None:
         if file_ and "name" in file_:
@@ -631,9 +631,7 @@ class Watcher:
     @room.setter
     def room(self, room) -> None:
         self._room = room
-        self._server.loop.create_task(
-            self._handleRoomUpdate()
-        )
+        self._server.loop.create_task(self._handleRoomUpdate())
 
     @property
     def name(self):
@@ -688,7 +686,7 @@ class Watcher:
         return self.getPosition() < b.getPosition()
 
     async def _handleRoomUpdate(self):
-        if room is None:
+        if self._room is None:
             await self._deactivateStateTimer()
         else:
             await self._resetStateTimer()

@@ -15,11 +15,11 @@ from syncplay.utils import meetsMinVersion
 
 class _PauseableMixin:
     _paused = False
- 
+
     def pause_reading(self) -> None:
         self._paused = True
         self.transport.pause_reading()
- 
+
     def resume_reading(self) -> None:
         self._paused = False
         self.transport.resume_reading()
@@ -169,7 +169,7 @@ class SyncServerProtocol(JSONCommandProtocol):
         self.sendError(error)
         self.drop()
 
-    def connectionLost(self, reason) -> None:
+    def connection_lost(self, _exc) -> None:
         self._factory.removeWatcher(self._watcher)
 
     def getFeatures(self) -> dict:
