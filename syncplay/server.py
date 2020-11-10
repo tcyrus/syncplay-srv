@@ -603,7 +603,7 @@ class Watcher:
         self._lastUpdatedOn = time.time()
         self._sendStateTimer = None
         self._connector.setWatcher(self)
-        reactor.callLater(0.1, self._scheduleSendState)
+        self._server.loop.call_soon(self._scheduleSendState)
 
     def setFile(self, file_) -> None:
         if file_ and "name" in file_:
@@ -630,11 +630,9 @@ class Watcher:
     @room.setter
     def room(self, room) -> None:
         self._room = room
-        if room is None:
-            self._deactivateStateTimer()
-        else:
-            self._resetStateTimer()
-            self._askForStateUpdate(True, True)
+        self._server.loop.create_task(
+            self._handleRoomUpdate()
+        )
 
     @property
     def name(self):
@@ -688,22 +686,35 @@ class Watcher:
             return True
         return self.getPosition() < b.getPosition()
 
-    def _scheduleSendState(self) -> None:
-        self._sendStateTimer = task.LoopingCall(self._askForStateUpdate)
-        self._sendStateTimer.start(constants.SERVER_STATE_INTERVAL)
+    async def _handleRoomUpdate(self):
+        if room is None:
+            await self._deactivateStateTimer()
+        else:
+            await self._resetStateTimer()
+            await self._askForStateUpdate(True, True)
 
-    def _askForStateUpdate(self, doSeek: bool = False, forcedUpdate: bool = False) -> None:
+    async def _scheduleSendState(self) -> None:
+        # self._sendStateTimer = task.LoopingCall(self._askForStateUpdate)
+        # self._sendStateTimer.start(constants.SERVER_STATE_INTERVAL)
+        self._sendStateTimer = aiotools.create_timer(
+            self._askForStateUpdate,
+            constants.SERVER_STATE_INTERVAL
+        )
+
+    async def _askForStateUpdate(self, doSeek: bool = False, forcedUpdate: bool = False) -> None:
         self._server.sendState(self, doSeek, forcedUpdate)
 
-    def _resetStateTimer(self) -> None:
+    async def _resetStateTimer(self) -> None:
         if self._sendStateTimer:
-            if self._sendStateTimer.running:
-                self._sendStateTimer.stop()
-            self._sendStateTimer.start(constants.SERVER_STATE_INTERVAL)
+            if not self._sendStateTimer.done():
+                self._sendStateTimer.cancel()
+                await self._sendStateTimer
+            await self._scheduleSendState()
 
-    def _deactivateStateTimer(self) -> None:
-        if self._sendStateTimer and self._sendStateTimer.running:
-            self._sendStateTimer.stop()
+    async def _deactivateStateTimer(self) -> None:
+        if self._sendStateTimer and not self._sendStateTimer.done():
+            self._sendStateTimer.cancel()
+            await self._sendStateTimer
 
     def sendState(self, position, paused, doSeek, setBy, forcedUpdate: bool) -> None:
         if self._connector.isLogged():
