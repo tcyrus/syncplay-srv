@@ -453,18 +453,13 @@ class SyncServerProtocol(JSONCommandProtocol):
         # There might be a slight issue with this since
         # there's no mutexes to prevent transport from being used
         # during the upgrade process
-        # The best thing I could do to avoid a race condition is
-        # to pause reading on the transport and hope for the best
         ssl_context = self._factory.options
-        self.pause_reading()
-        transport_ = await self._factory.loop.start_tls(
+        self.transport = await self._factory.loop.start_tls(
             self.transport,
             self,
             ssl_context,
             server_side=True
         )
-        self.transport = transport_
-        self.resume_reading()
 
 
 class PingService:
