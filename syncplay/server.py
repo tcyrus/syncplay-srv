@@ -631,7 +631,11 @@ class Watcher:
     @room.setter
     def room(self, room) -> None:
         self._room = room
-        self._server.loop.create_task(self._handleRoomUpdate())
+        if self._room is None:
+            self._server.loop.create_task(self._deactivateStateTimer())
+        else:
+            self._server.loop.create_task(self._resetStateTimer())
+            self._server.loop.create_task(self._askForStateUpdate(True, True))
 
     @property
     def name(self):
@@ -685,19 +689,13 @@ class Watcher:
             return True
         return self.getPosition() < b.getPosition()
 
-    async def _handleRoomUpdate(self):
-        if self._room is None:
-            await self._deactivateStateTimer()
-        else:
-            await self._resetStateTimer()
-            await self._askForStateUpdate(True, True)
-
-    async def _scheduleSendState(self) -> None:
+    def _scheduleSendState(self) -> None:
         # self._sendStateTimer = task.LoopingCall(self._askForStateUpdate)
         # self._sendStateTimer.start(constants.SERVER_STATE_INTERVAL)
         self._sendStateTimer = aiotools.create_timer(
             self._askForStateUpdate,
-            constants.SERVER_STATE_INTERVAL
+            constants.SERVER_STATE_INTERVAL,
+            aiotools.TimerDelayPolicy.CANCEL
         )
 
     async def _askForStateUpdate(self, doSeek: bool = False, forcedUpdate: bool = False) -> None:
@@ -708,7 +706,7 @@ class Watcher:
             if not self._sendStateTimer.done():
                 self._sendStateTimer.cancel()
                 await self._sendStateTimer
-            await self._scheduleSendState()
+            self._scheduleSendState()
 
     async def _deactivateStateTimer(self) -> None:
         if self._sendStateTimer and not self._sendStateTimer.done():
