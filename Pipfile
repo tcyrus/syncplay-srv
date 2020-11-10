@@ -10,6 +10,7 @@ pypiwin32 = {version = ">=223", sys_platform = "== 'win32'"}
 #"zope.interface" = {version = ">=4.4.0", sys_platform = "== 'win32'"}
 "zope.interface" = {version = ">=4.4.0"}
 Twisted = {extras = ["tls"], version = ">=16.4.0"}
+aiotools = "*"
 
 [requires]
 python_version = "3.8"
