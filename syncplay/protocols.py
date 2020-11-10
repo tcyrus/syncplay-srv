@@ -14,16 +14,15 @@ from syncplay.utils import meetsMinVersion
 
 
 class _PauseableMixin:
-    _paused = False
+    @property
+    def _paused(self) -> bool:
+        return not self.transport.is_reading()
 
     def pause_reading(self) -> None:
-        self._paused = True
         self.transport.pause_reading()
 
     def resume_reading(self) -> None:
-        self._paused = False
         self.transport.resume_reading()
-        self.data_received(b'')
 
 
 class LineReceiver(Protocol, _PauseableMixin):
