@@ -604,7 +604,7 @@ class Watcher:
         self._lastUpdatedOn = time.time()
         self._sendStateTimer = None
         self._connector.setWatcher(self)
-        self._server.loop.create_task(self._scheduleSendState())
+        self._server.loop.call_later(0.1, self._scheduleSendState)
 
     def setFile(self, file_) -> None:
         if file_ and "name" in file_:
