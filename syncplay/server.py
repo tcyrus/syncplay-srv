@@ -152,7 +152,7 @@ class SyncFactory(Factory):
     def sendRoomSwitchMessage(self, watcher: 'Watcher') -> None:
         l = lambda w: w.sendSetting(watcher.name, watcher.room, None, None)
         self._roomManager.broadcast(watcher, l)
-        l = lambda w: w.sendSetReady(watcher.name, watcher.isReady(), False)
+        l = lambda w: w.sendSetReady(watcher.name, watcher.ready, False)
         self._roomManager.broadcastRoom(watcher, l)
 
     def removeWatcher(self, watcher: 'Watcher') -> None:
@@ -167,7 +167,7 @@ class SyncFactory(Factory):
     def sendJoinMessage(self, watcher: 'Watcher') -> None:
         l = lambda w: w.sendSetting(watcher.name, watcher.room, None, {"joined": True, "version": watcher.version, "features": watcher.getFeatures()}) if w != watcher else None
         self._roomManager.broadcast(watcher, l)
-        l = lambda w: w.sendSetReady(watcher.name, watcher.isReady(), False)
+        l = lambda w: w.sendSetReady(watcher.name, watcher.ready, False)
         self._roomManager.broadcastRoom(watcher, l)
 
     def sendFileUpdate(self, watcher: 'Watcher') -> None:
@@ -210,8 +210,8 @@ class SyncFactory(Factory):
         self._roomManager.broadcastRoom(watcher, lambda w: w.sendChatMessage(messageDict))
 
     def setReady(self, watcher, isReady, manuallyInitiated: bool = True) -> None:
-        watcher.setReady(isReady)
-        self._roomManager.broadcastRoom(watcher, lambda w: w.sendSetReady(watcher.name, watcher.isReady(), manuallyInitiated))
+        watcher.ready = isReady
+        self._roomManager.broadcastRoom(watcher, lambda w: w.sendSetReady(watcher.name, watcher.ready, manuallyInitiated))
 
     def setPlaylist(self, watcher, files) -> None:
         room = watcher.room
@@ -355,8 +355,7 @@ class RoomManager:
     def getAllWatchersForUser(self, sender: 'Watcher') -> list:
         watchers = []
         for room in self._rooms.values():
-            for watcher in room.watchers:
-                watchers.append(watcher)
+            watchers.extend(room.watchers)
         return watchers
 
     def moveWatcher(self, watcher: 'Watcher', roomName: str) -> None:
@@ -387,8 +386,8 @@ class RoomManager:
         username = truncateText(username, constants.MAX_USERNAME_LENGTH)
         allnames = set()
         for room in self._rooms.values():
-            for watcher in room.watchers:
-                allnames.add(watcher.name.lower())
+            _watchers = map(lambda w: w.name.lower(), room.watchers)
+            allnames.update(_watchers)
         while username.lower() in allnames:
             username += '_'
         return username
@@ -464,9 +463,9 @@ class Room:
 
     def setPosition(self, position, setBy=None) -> None:
         self._position = position
+        self._setBy = setBy
         for watcher in self._watchers.values():
             watcher.setPosition(position)
-            self._setBy = setBy
 
     def isPlaying(self) -> bool:
         return self._playState == self.STATE_PLAYING
@@ -508,10 +507,11 @@ class Room:
 
     @playlist.setter
     def playlist(self, files) -> None:
-        self.setPlaylist(files)
+        self._playlist = files
 
     def setPlaylist(self, files, setBy=None) -> None:
-        self._playlist = files
+        # compatibility wrapper for property
+        self.playlist = files
 
     @property
     def playlistIndex(self):
@@ -519,10 +519,11 @@ class Room:
     
     @playlistIndex.setter
     def playlistIndex(self, index) -> None:
-        self.setPlaylistIndex(index)
+        self._playlistIndex = index
 
     def setPlaylistIndex(self, index, setBy=None) -> None:
-        self._playlistIndex = index
+        # compatibility wrapper for property
+        self.playlistIndex = index
 
 
 class ControlledRoom(Room):
@@ -604,17 +605,31 @@ class Watcher:
         self._file = file_
         self._server.sendFileUpdate(self)
 
-    def setReady(self, ready) -> None:
-        self._ready = ready
-
-    def getFeatures(self):
-        features = self._connector.getFeatures()
-        return features
-
-    def isReady(self):
+    @property
+    def ready(self):
         if self._server.disableReady:
             return None
         return self._ready
+
+    @ready.setter
+    def ready(self, ready) -> None:
+        self._ready = ready
+
+    def isReady(self):
+        # compatibility wrapper for property
+        return self.ready
+
+    def setReady(self, ready) -> None:
+        # compatibility wrapper for property
+        self.ready = ready
+
+    @property
+    def features(self):
+        return self._connector.getFeatures()
+
+    def getFeatures(self):
+        # compatibility wrapper for property
+        return self.features
 
     @property
     def room(self):
@@ -637,13 +652,16 @@ class Watcher:
     def version(self):
         return self._connector.getVersion()
 
-    def getFile(self):
+    @property
+    def file(self):
         return self._file
 
-    def setPosition(self, position) -> None:
-        self._position = position
+    def getFile(self):
+        # compatibility wrapper for property
+        return self.file
 
-    def getPosition(self):
+    @property
+    def position(self):
         if self._position is None:
             return None
         if self._room.isPlaying():
@@ -651,6 +669,18 @@ class Watcher:
         else:
             timePassedSinceSet = 0
         return self._position + timePassedSinceSet
+
+    @position.setter
+    def position(self, position) -> None:
+        self._position = position
+
+    def getPosition(self):
+        # compatibility wrapper for property
+        return self.position
+
+    def setPosition(self, position) -> None:
+        # compatibility wrapper for property
+        self.position = position
 
     def sendSetting(self, user: str, room: Room, file_, event) -> None:
         self._connector.sendUserSetting(user, room, file_, event)
@@ -729,4 +759,3 @@ class Watcher:
     def isController(self) -> bool:
         return RoomPasswordProvider.isControlledRoom(self._room.name) \
             and self._room.canControl(self)
-
