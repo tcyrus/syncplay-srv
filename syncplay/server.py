@@ -234,10 +234,9 @@ class SyncFactory(Factory):
     def _allowTLSconnections(self, path: str) -> None:
         try:
             privKeyPath = path+'/privkey.pem'
-            certifPath = path+'/cert.pem'
-            chainPath = path+'/chain.pem'
+            chainPath = path+'/fullchain.pem'
 
-            self.lastEditCertTime = os.path.getmtime(certifPath)
+            self.lastEditCertTime = os.path.getmtime(chainPath)
 
             cipherListString = "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:"\
                                "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:"\
@@ -247,7 +246,6 @@ class SyncFactory(Factory):
             try:
                 contextFactory = pem.twisted.certificateOptionsFromFiles(
                     privKeyPath,
-                    certifPath,
                     chainPath,
                     acceptableCiphers=accCiphers,
                     raiseMinimumTo=ssl.TLSVersion.TLSv1_2
@@ -255,7 +253,6 @@ class SyncFactory(Factory):
             except AttributeError:
                 contextFactory = pem.twisted.certificateOptionsFromFiles(
                     privKeyPath,
-                    certifPath,
                     chainPath,
                     acceptableCiphers=accCiphers,
                     method=TLSv1_2_METHOD
@@ -274,7 +271,7 @@ class SyncFactory(Factory):
 
     def checkLastEditCertTime(self):
         try:
-            outTime = os.path.getmtime(self.certPath+'/cert.pem')
+            outTime = os.path.getmtime(self.certPath+'/fullchain.pem')
         except:
             outTime = None
         return outTime
