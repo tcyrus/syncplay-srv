@@ -4,9 +4,17 @@ import sys
 import logging
 import asyncio
 
-import uvloop
+# import uvloop
 
-from twisted.internet import asyncioreactor
+# from twisted.internet import asyncioreactor
+
+# For reasons related to how twisted does things,
+# We need to run this code before the other imports happen
+# uvloop.install()
+# asyncioreactor.install()
+
+from twisted.internet.task import react
+from twisted.internet.defer import ensureDeferred, Deferred
 
 from twisted.internet.endpoints import TCP4ServerEndpoint, TCP6ServerEndpoint
 from twisted.internet.error import CannotListenError
@@ -77,7 +85,7 @@ class ConfigurationGetter:
         self._argparser.add_argument('--tls', metavar='path', type=str, nargs='?', help=getMessage("server-startTLS-argument"))
 
 
-def _main(reactor):
+async def _main(reactor):
     argsGetter = ConfigurationGetter()
     args = argsGetter.getConfiguration()
     factory = SyncFactory(
@@ -116,16 +124,20 @@ def _main(reactor):
         listening4 = True
 
     if listening6 or listening4:
-        reactor.run()
+        # reactor.run()
+        await Deferred()
     else:
         logging.error("Unable to listen using either IPv4 and IPv6 protocols. Quitting the server now.")
         sys.exit()
 
 
 def main():
-    uvloop.install()
-    asyncioreactor.install()
-    _main(asyncioreactor)
+    # asyncio.run(_main(asyncioreactor))
+    return react(
+        lambda reactor: ensureDeferred(
+            _main(reactor)
+        )
+    )
 
 
 if __name__ == "__main__":
