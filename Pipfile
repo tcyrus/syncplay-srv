@@ -9,6 +9,7 @@ certifi = "*"
 "zope.interface" = {version = ">=4.4.0"}
 Twisted = {extras = ["tls"], version = ">=16.4.0"}
 uvloop = "*"
+pem = "*"
 
 [requires]
 python_version = "3.8"
