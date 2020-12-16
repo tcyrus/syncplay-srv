@@ -3,7 +3,7 @@ version: '3.7'
 services:
   app:
     build: .
-    image: weeb-poly/syncplay-srv
+    image: "ghcr.io/weeb-poly/syncplay-server"
     environment:
       SYNCPLAY_PASSWORD: "${SYNCPLAY_PASSWORD}"
       SYNCPLAY_SALT: "${SYNCPLAY_SALT}"

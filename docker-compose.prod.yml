@@ -7,7 +7,4 @@ services:
       SYNCPLAY_TLS_PATH : "/app/cert"
     volumes:
       - ${SYNCPLAY_TLS_PATH}/privkey.pem:/app/cert/privkey.pem:ro
-      - ${SYNCPLAY_TLS_PATH}/cert.pem:/app/cert/cert.pem:ro
-      - ${SYNCPLAY_TLS_PATH}/chain.pem:/app/cert/chain.pem:ro
-    extra_hosts:
-      - "db:172.17.0.1"
+      - ${SYNCPLAY_TLS_PATH}/fullchain.pem:/app/cert/fullchain.pem:ro
