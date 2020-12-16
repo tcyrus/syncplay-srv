@@ -6,9 +6,8 @@ verify_ssl = true
 [packages]
 certifi = "*"
 #"zope.interface" = {version = ">=4.4.0", sys_platform = "== 'win32'"}
-"zope.interface" = {version = "*"}
+"zope.interface" = "*"
 Twisted = {extras = ["tls"], version = ">=20.3.0"}
-uvloop = "*"
 pem = "*"
 
 [requires]
