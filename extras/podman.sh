@@ -19,6 +19,6 @@ podman create \
     --mount "type=bind,source=${SYNCPLAY_TLS_PATH}/privkey.pem,target=/app/cert/privkey.pem,ro=true" \
     --mount "type=bind,source=${SYNCPLAY_TLS_PATH}/fullchain.pem,target=/app/cert/fullchain.pem,ro=true" \
     --name syncplay-server \
-    syncplay-server
+    ghcr.io/weeb-poly/syncplay-server
 
 podman start syncplay-server
