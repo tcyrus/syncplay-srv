@@ -1,4 +1,4 @@
-FROM docker.io/library/python:3
+FROM docker.io/library/python:3 as build-env
 
 LABEL org.opencontainers.image.source https://github.com/weeb-poly/syncplay-server
 
@@ -18,11 +18,22 @@ WORKDIR /app
 COPY Pipfile* ./
 
 # Install project dependencies
-RUN pipenv install --system --deploy
+RUN pipenv install --deploy
 
 # Copy project files into working directory
 # This is done last to prevent unnecessary image rebuilds
 COPY . .
 
-ENTRYPOINT ["python"]
-CMD ["-m", "syncplay"]
+# Build pex file
+RUN pipenv run pex-build
+
+
+FROM docker.io/library/python:3
+
+# Create the working directory
+WORKDIR /app
+
+# Copy pex file from build-env
+COPY --from=build-env /app/syncplay.pex /app/
+
+CMD ["./syncplay.pex"]
