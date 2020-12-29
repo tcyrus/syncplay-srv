@@ -107,7 +107,7 @@ async def _main(reactor):
     try:
         await endpoint6.listen(factory)
     except CannotListenError as e:
-        logging.debug(e.value)
+        logging.debug(e)
         logging.error("IPv6 listening failed.")
     else:
         listening6 = True
@@ -118,7 +118,7 @@ async def _main(reactor):
         await endpoint4.listen(factory)
     except CannotListenError as e:
         if not listening6:
-            logging.debug(e.value)
+            logging.debug(e)
             logging.error("IPv4 listening failed.")
     else:
         listening4 = True

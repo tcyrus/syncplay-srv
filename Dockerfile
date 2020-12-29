@@ -25,4 +25,4 @@ RUN pipenv install --system --deploy
 COPY . .
 
 ENTRYPOINT ["python"]
-CMD ["./syncplayServer.py"]
+CMD ["-m", "syncplay"]
