@@ -1,6 +1,4 @@
-FROM docker.io/library/python:3 as build-env
-
-LABEL org.opencontainers.image.source https://github.com/weeb-poly/syncplay-server
+FROM docker.io/library/python:3.8 as build-env
 
 # Set pip to have cleaner logs and no saved cache
 ENV PIP_NO_CACHE_DIR=false \
@@ -18,7 +16,7 @@ WORKDIR /app
 COPY Pipfile* ./
 
 # Install project dependencies
-RUN pipenv install --deploy
+RUN pipenv install --dev --deploy
 
 # Copy project files into working directory
 # This is done last to prevent unnecessary image rebuilds
@@ -28,7 +26,9 @@ COPY . .
 RUN pipenv run pex-build
 
 
-FROM docker.io/library/python:3
+FROM docker.io/library/python:3.8
+
+LABEL org.opencontainers.image.source https://github.com/weeb-poly/syncplay-server
 
 # Create the working directory
 WORKDIR /app

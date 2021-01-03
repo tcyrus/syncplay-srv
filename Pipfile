@@ -19,3 +19,6 @@ pex-build = "./extras/pex.sh"
 pex-run = "./syncplay.pex"
 podman-prod = "sudo -E ./extras/podman.sh"
 # podman-copy = "podman save syncplay-server | sudo podman load"
+
+[dev-packages]
+pex = "*"
