@@ -16,9 +16,10 @@ python_version = "3.8"
 [scripts]
 server = "python -m syncplay"
 pex-build = "./extras/pex.sh"
-pex-run = "./syncplay.pex"
+shiv-build = "./extras/shiv.sh"
+shiv-run = "./syncplay.pyz"
 podman-prod = "sudo -E ./extras/podman.sh"
 # podman-copy = "podman save syncplay-server | sudo podman load"
 
 [dev-packages]
-pex = "*"
+shiv = "*"

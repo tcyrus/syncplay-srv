@@ -23,7 +23,7 @@ RUN pipenv install --dev --deploy
 COPY . .
 
 # Build pex file
-RUN pipenv run pex-build
+RUN pipenv run shiv-build
 
 
 FROM docker.io/library/python:3.8
@@ -34,6 +34,6 @@ LABEL org.opencontainers.image.source https://github.com/weeb-poly/syncplay-serv
 WORKDIR /app
 
 # Copy pex file from build-env
-COPY --from=build-env /app/syncplay.pex /app/
+COPY --from=build-env /app/syncplay.pyz /app/
 
-CMD ["./syncplay.pex"]
+CMD ["./syncplay.pyz"]
