@@ -172,8 +172,8 @@ class SyncFactory(Factory):
         self._roomManager.broadcastRoom(watcher, l)
 
     def sendFileUpdate(self, watcher: 'Watcher') -> None:
-        if watcher.getFile():
-            l = lambda w: w.sendSetting(watcher.name, watcher.room, watcher.getFile(), None)
+        if watcher.file is not None:
+            l = lambda w: w.sendSetting(watcher.name, watcher.room, watcher.file, None)
             self._roomManager.broadcast(watcher, l)
 
     def forcePositionUpdate(self, watcher: 'Watcher', doSeek, watcherPauseState) -> None:
@@ -410,7 +410,7 @@ class PublicRoomManager(RoomManager):
         l = lambda w: w.sendSetting(watcher.name, oldRoom, None, {"left": True})
         self.broadcast(watcher, l)
         RoomManager.moveWatcher(self, watcher, room)
-        watcher.setFile(watcher.getFile())
+        watcher.setFile(watcher.file)
 
 
 class Room:
@@ -540,7 +540,7 @@ class ControlledRoom(Room):
         if self._controllers and age > 1:
             watcher = min(self._controllers.values())
             self._setBy = watcher
-            self._position = watcher.getPosition()
+            self._position = watcher.position
             self._lastUpdate = time.time()
             return self._position
         elif self._position is not None:
@@ -707,11 +707,11 @@ class Watcher:
         self._connector.setPlaylist(username, files)
 
     def __lt__(self, b) -> bool:
-        if self.getPosition() is None or self._file is None:
+        if self.position is None or self.file is None:
             return False
-        if b.getPosition() is None or b.getFile() is None:
+        if b.position is None or b.file is None:
             return True
-        return self.getPosition() < b.getPosition()
+        return self.position < b.position
 
     def _scheduleSendState(self) -> None:
         self._sendStateTimer = task.LoopingCall(self._askForStateUpdate)
