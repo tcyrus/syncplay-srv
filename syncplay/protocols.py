@@ -346,11 +346,12 @@ class SyncServerProtocol(JSONCommandProtocol):
         if "playstate" in state:
             position, paused, doSeek = self._extractStatePlaystateArguments(state)
         if "ping" in state:
-            latencyCalculation = state["ping"].get("latencyCalculation", 0)
+            latencyCalculation = state["ping"].get("latencyCalculation")
             clientRtt = state["ping"].get("clientRtt", 0)
             self._clientLatencyCalculation = state["ping"].get("clientLatencyCalculation", 0)
             self._clientLatencyCalculationArrivalTime = time.time()
-            self._pingService.receiveMessage(latencyCalculation, clientRtt)
+            if latencyCalculation is not None:
+                self._pingService.receiveMessage(latencyCalculation, clientRtt)
         if self.serverIgnoringOnTheFly == 0:
             self._watcher.updateState(position, paused, doSeek, self._pingService.getLastForwardDelay())
 
