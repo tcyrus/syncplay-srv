@@ -1,6 +1,7 @@
 # coding:utf8
 import json
 import time
+from typing import Union
 from functools import wraps
 import logging
 
@@ -346,12 +347,11 @@ class SyncServerProtocol(JSONCommandProtocol):
         if "playstate" in state:
             position, paused, doSeek = self._extractStatePlaystateArguments(state)
         if "ping" in state:
-            latencyCalculation = state["ping"].get("latencyCalculation")
+            latencyCalculation = state["ping"].get("latencyCalculation", 0)
             clientRtt = state["ping"].get("clientRtt", 0)
             self._clientLatencyCalculation = state["ping"].get("clientLatencyCalculation", 0)
             self._clientLatencyCalculationArrivalTime = time.time()
-            if latencyCalculation is not None:
-                self._pingService.receiveMessage(latencyCalculation, clientRtt)
+            self._pingService.receiveMessage(latencyCalculation, clientRtt)
         if self.serverIgnoringOnTheFly == 0:
             self._watcher.updateState(position, paused, doSeek, self._pingService.getLastForwardDelay())
 
@@ -394,7 +394,9 @@ class PingService:
     def newTimestamp(self) -> float:
         return time.time()
 
-    def receiveMessage(self, timestamp: float, senderRtt: float) -> None:
+    def receiveMessage(self, timestamp: Union[int, float], senderRtt: Union[int, float]) -> None:
+        if not timestamp:
+            return
         self._rtt = time.time() - timestamp
         if self._rtt < 0 or senderRtt < 0:
             return
