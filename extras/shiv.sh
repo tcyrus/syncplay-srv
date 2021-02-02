@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-rm syncplay.pyz
+PYZ_FILE="syncplay.pyz"
+
+[ ! -e "${PYZ_FILE}" ] || rm "${PYZ_FILE}"
 
 pip install -r <(pipenv lock -r) --target dist/
 
@@ -11,7 +13,7 @@ shiv \
   --uncompressed \
   --reproducible \
   -p '/usr/bin/env python3' \
-  -o syncplay.pyz \
+  -o "${PYZ_FILE}" \
   -e syncplay.ep_server:main
 
 rm -r dist

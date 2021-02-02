@@ -14,4 +14,4 @@ podman create \
     --name syncplay-server \
     ghcr.io/weeb-poly/syncplay-server
 
-podman start syncplay-server
+# podman start syncplay-server
