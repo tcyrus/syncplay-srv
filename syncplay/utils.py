@@ -109,9 +109,10 @@ class RoomPasswordProvider:
         roomName = roomName.encode('utf8')
         salt = salt.encode('utf8')
         password = password.encode('utf8')
-        salt = hashlib.sha256(salt).hexdigest().encode('utf8')
-        provisionalHash = hashlib.sha256(roomName + salt).hexdigest().encode('utf8')
-        return hashlib.sha1(provisionalHash + salt + password).hexdigest()[:12].upper()
+        salt = hashlib.blake2s(salt, digest_size=8).digest()
+        roomName = hashlib.blake2s(roomName, digest_size=8).digest()
+        provisionalHash = hashlib.blake2s(password, salt=salt, person=roomName, digest_size=6)
+        return provisionalHash.hexdigest().upper()
 
 
 class RandomStringGenerator:
