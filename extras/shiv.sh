@@ -14,6 +14,6 @@ shiv \
   --reproducible \
   -p '/usr/bin/env python3' \
   -o "${PYZ_FILE}" \
-  -e syncplay.ep_server:main
+  -e syncplay.__main__:main
 
 rm -r dist

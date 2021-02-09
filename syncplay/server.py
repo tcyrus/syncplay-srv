@@ -10,7 +10,7 @@ import pem
 
 from twisted.enterprise import adbapi
 from twisted.internet import task, reactor
-from twisted.internet.protocol import Factory
+from twisted.internet.protocol import ServerFactory
 
 try:
     from OpenSSL.SSL import TLSv1_2_METHOD
@@ -25,7 +25,7 @@ from syncplay.protocols import SyncServerProtocol
 from syncplay.utils import RoomPasswordProvider, NotControlledRoom, RandomStringGenerator, meetsMinVersion, playlistIsValid, truncateText
 
 
-class SyncFactory(Factory):
+class SyncFactory(ServerFactory):
     isolateRooms: bool
     port: str
     password: str
@@ -518,7 +518,7 @@ class Room:
     @property
     def playlistIndex(self):
         return self._playlistIndex
-    
+
     @playlistIndex.setter
     def playlistIndex(self, index) -> None:
         self._playlistIndex = index
