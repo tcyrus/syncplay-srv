@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncplay-tcp-deployment
+  labels:
+    app: syncplay
+spec:
+  replicas: 1
+  revisionHistoryLimit: 0
+  selector:
+    matchLabels:
+      app: syncplay
+      role: tcp-server
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: syncplay
+        role: tcp-server
+    spec:
+      containers:
+      - name: syncplay-tcp-server
+        image: ghcr.io/weeb-poly/syncplay-server:latest
+        env:
+        - name: SYNCPLAY_PORT
+          value: "8999"
+        - name: SYNCPLAY_TLS_PATH
+          value: "/app/cert"
+        - name: SYNCPLAY_MOTD_FILE
+          value: "/app/motd.txt"
+        - name: SYNCPLAY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: syncplay-secret
+              key: password
+        - name: SYNCPLAY_SALT
+          valueFrom:
+            secretKeyRef:
+              name: syncplay-secret
+              key: salt
+        - name: SYNCPLAY_ISOLATE_ROOMS
+          valueFrom:
+            configMapKeyRef:
+              name: syncplay-config
+              key: isolate_rooms
+        - name: SYNCPLAY_DISABLE_READY
+          valueFrom:
+            configMapKeyRef:
+              name: syncplay-config
+              key: disable_ready
+        - name: SYNCPLAY_DISABLE_CHAT
+          valueFrom:
+            configMapKeyRef:
+              name: syncplay-config
+              key: disable_chat
+        ports:
+        - name: syncplay-tcp
+          containerPort: 8999
+          protocol: TCP
+        livenessProbe:
+          tcpSocket:
+            port: syncplay-tcp
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: syncplay-tcp
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        volumeMounts:
+        - name: syncplay-motd
+          readOnly: true
+          mountPath: /app/motd.txt
+          subPath: motd.txt
+#        - name: syncplay-tls-privkey
+#          readOnly: true
+#          mountPath: /app/cert/privkey.pem
+#        - name: syncplay-tls-fullchain
+#          readOnly: true
+#          mountPath: /app/cert/fullchain.pem
+        - name: syncplay-tls
+          readOnly: true
+          mountPath: /app/cert
+      volumes:
+      - name: syncplay-motd
+        configMap:
+          name: syncplay-config
+          items:
+          - key: motd
+            path: motd.txt
+#      - name: syncplay-tls-privkey
+#        hostPath:
+#          path: ${SYNCPLAY_TLS_PATH}/privkey.pem
+#          type: File
+#      - name: syncplay-tls-fullchain
+#        hostPath:
+#          path: ${SYNCPLAY_TLS_PATH}/fullchain.pem
+#          type: File
+      - name: syncplay-tls
+        secret:
+          secretName: syncplay-tls-secret
+          items:
+          - key: tls.key
+            path: privkey.pem
+          - key: tls.crt
+            path: fullchain.pem

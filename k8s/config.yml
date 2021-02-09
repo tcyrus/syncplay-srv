@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: syncplay-config
+  labels:
+    app: syncplay  
+data:
+  isolate_rooms: "False"
+  disable_ready: "False"
+  disable_chat: "False"
+#  SYNCPLAY_STATS_DB_FILE: ""
+#  SYNCPLAY_MAX_CHAT_MSG_LEN: ""
+#  SYNCPLAY_MAX_UNAME_LEN: ""
+  motd: |
+    Welcome to the Weeb Poly Syncplay Server
+    Join us at https://discord.gg/ZhcsnWN
