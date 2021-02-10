@@ -2,14 +2,6 @@
 
 podman build -t ghcr.io/weeb-poly/syncplay-server .
 
-# kubectl create secret tls syncplay-tls-secret \
-#   "--cert=${SYNCPLAY_TLS_PATH}/fullchain.pem" \
-#   "--key=${SYNCPLAY_TLS_PATH}/privkey.pem" \
-#   --dry-run -o yaml | kubectl apply -f -
-# kubectl label secret syncplay-tls-secret app=syncplay
-
-kubectl rollout restart deployment/syncplay-tcp-deployment
-
 # podman create \
 #     --env "SYNCPLAY_PASSWORD=${SYNCPLAY_PASSWORD}" \
 #     --env "SYNCPLAY_SALT=${SYNCPLAY_SALT}" \

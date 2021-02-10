@@ -17,4 +17,4 @@ podman rmi "${IMG_NAME}"
 podman push "${IMG_TAG}"
 
 # Delete Image from User
-podman rmi "${IMG_TAG}"
+# podman rmi "${IMG_TAG}"

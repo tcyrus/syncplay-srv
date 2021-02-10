@@ -5,12 +5,12 @@ metadata:
   labels:
     app: syncplay
 spec:
-  type: LoadBalancer
-  externalTrafficPolicy: Local
+  type: ClusterIP
   selector:
     app: syncplay
     role: main-tcp
   ports:
   - port: 8995
     targetPort: syncplay-tcp
+#    nodePort: 30096
     protocol: TCP

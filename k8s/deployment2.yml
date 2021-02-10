@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncplay-proxy
+  labels:
+    app: syncplay
+spec:
+  replicas: 1
+  revisionHistoryLimit: 0
+  selector:
+    matchLabels:
+      app: syncplay
+      role: proxy
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: syncplay
+        role: proxy
+    spec:
+      containers:
+      - name: syncplay-proxy-server
+        image: ghcr.io/weeb-poly/syncplay-proxy:latest
+        env:
+        - name: SYNCPLAY_TCP_PORT
+          value: "8995"
+        - name: SYNCPLAY_WS_PORT
+          value: "9995"
+        - name: SYNCPLAY_TLS_PATH
+          value: "/app/cert"
+        - name: SYNCPLAY_HOST
+          value: "syncplay-main:8995"
+        ports:
+        - name: syncplay-tcp
+          containerPort: 8995
+          protocol: TCP
+        - name: syncplay-ws
+          containerPort: 9995
+          protocol: TCP
+        livenessProbe:
+          tcpSocket:
+            port: syncplay-tcp
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: syncplay-tcp
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        volumeMounts:
+        - name: syncplay-tls
+          readOnly: true
+          mountPath: /app/cert
+      volumes:
+      - name: syncplay-tls
+        secret:
+          secretName: syncplay-tls-secret
+          items:
+          - key: tls.key
+            path: privkey.pem
+          - key: tls.crt
+            path: fullchain.pem

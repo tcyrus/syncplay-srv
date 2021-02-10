@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: syncplay-tcp-deployment
+  name: syncplay-main
   labels:
     app: syncplay
 spec:
@@ -10,14 +10,14 @@ spec:
   selector:
     matchLabels:
       app: syncplay
-      role: tcp-server
+      role: main-tcp
   strategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
         app: syncplay
-        role: tcp-server
+        role: main-tcp
     spec:
       containers:
       - name: syncplay-tcp-server
@@ -25,8 +25,8 @@ spec:
         env:
         - name: SYNCPLAY_PORT
           value: "8999"
-        - name: SYNCPLAY_TLS_PATH
-          value: "/app/cert"
+#        - name: SYNCPLAY_TLS_PATH
+#          value: "/app/cert"
         - name: SYNCPLAY_MOTD_FILE
           value: "/app/motd.txt"
         - name: SYNCPLAY_PASSWORD
@@ -79,9 +79,9 @@ spec:
 #        - name: syncplay-tls-fullchain
 #          readOnly: true
 #          mountPath: /app/cert/fullchain.pem
-        - name: syncplay-tls
-          readOnly: true
-          mountPath: /app/cert
+#        - name: syncplay-tls
+#          readOnly: true
+#          mountPath: /app/cert
       volumes:
       - name: syncplay-motd
         configMap:
@@ -97,11 +97,11 @@ spec:
 #        hostPath:
 #          path: ${SYNCPLAY_TLS_PATH}/fullchain.pem
 #          type: File
-      - name: syncplay-tls
-        secret:
-          secretName: syncplay-tls-secret
-          items:
-          - key: tls.key
-            path: privkey.pem
-          - key: tls.crt
-            path: fullchain.pem
+#      - name: syncplay-tls
+#        secret:
+#          secretName: syncplay-tls-secret
+#          items:
+#          - key: tls.key
+#            path: privkey.pem
+#          - key: tls.crt
+#            path: fullchain.pem
