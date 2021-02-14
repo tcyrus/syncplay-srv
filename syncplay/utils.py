@@ -135,7 +135,7 @@ class RandomStringGenerator:
 
     @staticmethod
     def _get_random_numbers(quantity: int) -> str:
-        return ''.join(random.choice(string.digits, k=quantity))
+        return ''.join(random.choices(string.digits, k=quantity))
 
 
 class NotControlledRoom(Exception):
