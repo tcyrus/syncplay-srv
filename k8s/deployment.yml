@@ -3,21 +3,22 @@ kind: Deployment
 metadata:
   name: syncplay-main
   labels:
-    app: syncplay
+    app.kubernetes.io/part-of: syncplay
+    app.kubernetes.io/component: server
 spec:
   replicas: 1
   revisionHistoryLimit: 0
   selector:
     matchLabels:
-      app: syncplay
-      role: main-tcp
+      app.kubernetes.io/part-of: syncplay
+      app.kubernetes.io/component: server
   strategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        app: syncplay
-        role: main-tcp
+        app.kubernetes.io/part-of: syncplay
+        app.kubernetes.io/component: server
     spec:
       containers:
       - name: syncplay-tcp-server
@@ -73,12 +74,6 @@ spec:
           readOnly: true
           mountPath: /app/motd.txt
           subPath: motd.txt
-#        - name: syncplay-tls-privkey
-#          readOnly: true
-#          mountPath: /app/cert/privkey.pem
-#        - name: syncplay-tls-fullchain
-#          readOnly: true
-#          mountPath: /app/cert/fullchain.pem
 #        - name: syncplay-tls
 #          readOnly: true
 #          mountPath: /app/cert
@@ -89,14 +84,6 @@ spec:
           items:
           - key: motd
             path: motd.txt
-#      - name: syncplay-tls-privkey
-#        hostPath:
-#          path: ${SYNCPLAY_TLS_PATH}/privkey.pem
-#          type: File
-#      - name: syncplay-tls-fullchain
-#        hostPath:
-#          path: ${SYNCPLAY_TLS_PATH}/fullchain.pem
-#          type: File
 #      - name: syncplay-tls
 #        secret:
 #          secretName: syncplay-tls-secret

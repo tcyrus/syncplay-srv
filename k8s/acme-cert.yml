@@ -3,7 +3,7 @@ kind: Certificate
 metadata:
   name: syncplay-cert
   labels:
-    app: syncplay
+    app.kubernetes.io/part-of: syncplay
 spec:
   secretName: syncplay-tls-secret
   dnsNames:

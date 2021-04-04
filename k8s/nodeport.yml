@@ -3,12 +3,12 @@ kind: Service
 metadata:
   name: syncplay-proxy
   labels:
-    app: syncplay
+    app.kubernetes.io/part-of: syncplay
 spec:
   type: NodePort
   selector:
-    app: syncplay
-    role: proxy
+    app.kubernetes.io/part-of: syncplay
+    app.kubernetes.io/component: proxy
   ports:
   - name: syncplay-proxy-tcp
     port: 8995

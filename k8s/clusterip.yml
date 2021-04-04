@@ -3,14 +3,13 @@ kind: Service
 metadata:
   name: syncplay-main
   labels:
-    app: syncplay
+    app.kubernetes.io/part-of: syncplay
 spec:
   type: ClusterIP
   selector:
-    app: syncplay
-    role: main-tcp
+    app.kubernetes.io/part-of: syncplay
+    app.kubernetes.io/component: server
   ports:
   - port: 8995
     targetPort: syncplay-tcp
-#    nodePort: 30096
     protocol: TCP

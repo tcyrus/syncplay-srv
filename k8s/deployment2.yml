@@ -3,21 +3,22 @@ kind: Deployment
 metadata:
   name: syncplay-proxy
   labels:
-    app: syncplay
+    app.kubernetes.io/part-of: syncplay
+    app.kubernetes.io/component: proxy
 spec:
   replicas: 1
   revisionHistoryLimit: 0
   selector:
     matchLabels:
-      app: syncplay
-      role: proxy
+      app.kubernetes.io/part-of: syncplay
+      app.kubernetes.io/component: proxy
   strategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        app: syncplay
-        role: proxy
+        app.kubernetes.io/part-of: syncplay
+        app.kubernetes.io/component: proxy
     spec:
       containers:
       - name: syncplay-proxy-server
@@ -38,11 +39,14 @@ spec:
         - name: syncplay-ws
           containerPort: 9995
           protocol: TCP
-        livenessProbe:
-          tcpSocket:
-            port: syncplay-tcp
-          initialDelaySeconds: 5
-          periodSeconds: 10
+## Issues arise when proxy is unable to reach main server.
+## This causes false alarms and unnecessary redeployments.
+## As such, there's no redeployment
+#        livenessProbe:
+#          tcpSocket:
+#            port: syncplay-tcp
+#          initialDelaySeconds: 5
+#          periodSeconds: 10
         readinessProbe:
           tcpSocket:
             port: syncplay-tcp

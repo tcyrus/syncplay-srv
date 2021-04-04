@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: syncplay-config
   labels:
-    app: syncplay  
+    app.kubernetes.io/part-of: syncplay
 data:
   isolate_rooms: "False"
   disable_ready: "False"
