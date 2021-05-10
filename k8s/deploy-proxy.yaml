@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: syncplay-proxy
+  namespace: syncplay
   labels:
     app.kubernetes.io/part-of: syncplay
     app.kubernetes.io/component: proxy

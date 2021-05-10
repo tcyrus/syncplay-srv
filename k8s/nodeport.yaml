@@ -2,13 +2,11 @@ apiVersion: v1
 kind: Service
 metadata:
   name: syncplay-proxy
-  annotations:
-    service.beta.kubernetes.io/do-loadbalancer-protocol: "tcp"
+  namespace: syncplay
   labels:
     app.kubernetes.io/part-of: syncplay
 spec:
-  type: LoadBalancer
-  externalTrafficPolicy: Local
+  type: NodePort
   selector:
     app.kubernetes.io/part-of: syncplay
     app.kubernetes.io/component: proxy
@@ -16,8 +14,10 @@ spec:
   - name: syncplay-proxy-tcp
     port: 8995
     targetPort: syncplay-tcp
+    nodePort: 30096
     protocol: TCP
   - name: syncplay-proxy-ws
     port: 9995
     targetPort: syncplay-ws
+    nodePort: 30195
     protocol: TCP
